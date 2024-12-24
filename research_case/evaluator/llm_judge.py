@@ -77,7 +77,7 @@ class LLMJudge:
             )
             logger.info("Received response from LLM.")
             
-            logger.info(f'Raw Response: {response}')
+            logger.debug(f'Raw Response: {response}')
             #response_content = json.loads(response)
             return self.parse_analysis(response)
             #return self.response_content
