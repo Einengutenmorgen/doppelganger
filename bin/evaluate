@@ -71,7 +71,7 @@ def print_summary(results: dict):
         if 'llm_evaluation' in agg:
             llm = agg['llm_evaluation']
             print(f"Authenticity: {llm['authenticity']['mean']:.1f}/10")
-            print(f"Response Quality: {llm['response_quality']['mean']:.1f}/10")
+            #print(f"Response Quality: {llm['response_quality']['mean']:.1f}/10")
             print(f"Style Consistency: {llm['style_consistency']['mean']:.1f}/10")
 
 def main():

@@ -42,14 +42,13 @@ class SimilarityAnalyzer:
             logger.error(f"Error initializing jina-embeddings model: {e}")
             raise
     
-    def analyze_similarity(self, original: str, regenerated: str, neutral: str) -> SimilarityScores:
+    def analyze_similarity(self, original: str, regenerated: str) -> SimilarityScores:
         """
         Analyze various similarity aspects between texts.
         
         Args:
             original: Original text
             regenerated: Regenerated text
-            neutral: Neutral description
             
         Returns:
             SimilarityScores object containing similarity metrics

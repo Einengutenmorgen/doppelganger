@@ -42,7 +42,6 @@ class EvaluationPipeline:
             similarity_scores = self.similarity_analyzer.analyze_similarity(
                 original=original_post['full_text'],
                 regenerated=generated_post['generated_text'],
-                neutral=generated_post['stimulus']
             )
             
             # LLM evaluation
@@ -107,18 +106,21 @@ class EvaluationPipeline:
     def _calculate_aggregate_metrics(self, evaluations: List[Dict]) -> Dict:
         """Calculate aggregate statistics for all metrics."""
         try:
-            rouge_scores = [e['rouge_scores'] for e in evaluations]
-            similarity_scores = [e['similarity_scores'] for e in evaluations]
-            llm_scores = [e['llm_evaluation'] for e in evaluations]
+            # Filter out any failed evaluations that might have empty dictionaries
+            valid_evaluations = [e for e in evaluations if e and all(k in e for k in ["rouge_scores", "llm_evaluation"])]
             
+            if not valid_evaluations:
+                logger.warning("No valid evaluations to aggregate")
+                return {}
+
             return {
-                'rouge': self._aggregate_rouge_scores(rouge_scores),
-                'similarity': self._aggregate_similarity_scores(similarity_scores),
-                'llm_evaluation': self._aggregate_llm_scores(llm_scores)
+                "rouge": self._aggregate_rouge_scores([e["rouge_scores"] for e in valid_evaluations]),
+                "llm_evaluation": self._aggregate_llm_scores([e["llm_evaluation"] for e in valid_evaluations])
             }
         except Exception as e:
             logger.error(f"Error calculating aggregate metrics: {e}")
             return {}
+    
     
     def _get_default_evaluation(self) -> Dict:
         """Return default evaluation if processing fails."""
@@ -173,39 +175,52 @@ class EvaluationPipeline:
         """Aggregate similarity scores across multiple evaluations."""
         if not scores:
             return {}
-            
-        return {
-            'semantic_similarity': {
-                'mean': sum(s['semantic_similarity'] for s in scores) / len(scores),
-                'std': 0.0
-            },
-            'style_similarity': {
-                'mean': sum(s['style_similarity'] for s in scores) / len(scores),
-                'std': 0.0
-            },
-            'content_preservation': {
-                'mean': sum(s['content_preservation'] for s in scores) / len(scores),
-                'std': 0.0
+                
+        try:
+            return {
+                "authenticity": {
+                    "mean": sum(s["authenticity"]["score"] for s in scores) / len(scores),
+                    "std": 0.0
+                },
+                "style_consistency": {
+                    "mean": sum(s["style_consistency"]["score"] for s in scores) / len(scores),
+                    "std": 0.0
+                }
             }
-        }
+        except KeyError as e:
+            logger.error(f"Missing key in similarity scores: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"Error aggregating similarity scores: {e}")
+            return {}
+
     
     @staticmethod
     def _aggregate_llm_scores(scores: List[Dict]) -> Dict:
         """Aggregate LLM evaluation scores across multiple evaluations."""
         if not scores:
             return {}
-            
-        return {
-            'authenticity': {
-                'mean': sum(s['authenticity']['score'] for s in scores) / len(scores),
-                'std': 0.0
-            },
-            'response_quality': {
-                'mean': sum(s['response_quality']['score'] for s in scores) / len(scores),
-                'std': 0.0
-            },
-            'style_consistency': {
-                'mean': sum(s['style_consistency']['score'] for s in scores) / len(scores),
-                'std': 0.0
+                
+        try:
+            aggregated = {
+                "authenticity": {
+                    "mean": sum(s["authenticity"]["score"] for s in scores) / len(scores),
+                    "std": 0.0
+                },
+                "style_consistency": {
+                    "mean": sum(s["style_consistency"]["score"] for s in scores) / len(scores),
+                    "std": 0.0
+                }
             }
-        }
+
+            # Count matching_intent true/false ratio
+            matching_intent_count = sum(1 for s in scores if s.get("matching_intent", False))
+            aggregated["matching_intent_ratio"] = matching_intent_count / len(scores)
+
+            return aggregated
+        except KeyError as e:
+            logger.error(f"Missing key in LLM scores: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"Error aggregating LLM scores: {e}")
+            return {}

@@ -24,14 +24,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 3,
-          "explanation": "The generated post does not match the original user's persona well. The original post is direct and expresses a clear preference with a specific reason, while the generated post uses humor and a more generalized commentary on social media platforms."
+          "explanation": "The generated post uses humor and a casual tone, which might align with the user's persona, but it lacks the directness and specific cultural commentary present in the original post."
         },
         "style_consistency": {
           "score": 2,
-          "explanation": "The style of the generated post is quite different from the original. The original is straightforward and somewhat provocative, whereas the generated post is light-hearted, uses humor, and includes hashtags."
+          "explanation": "The original post is straightforward and makes a specific cultural observation, while the generated post is more abstract, humorous, and uses metaphors, which diverges from the original style."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post fails to capture the directness and specific critique present in the original post. It shifts the focus from a personal preference based on user interactions to a more general commentary on social media platforms, losing the original intent and tone."
+        "overall_feedback": "The generated post fails to capture the directness and cultural commentary of the original. It shifts the focus from a specific social observation to a general commentary on social media platforms, losing the original intent and style."
       },
       "metadata": {
         "original_id": 1.687473934e+18,
@@ -63,14 +63,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 3,
-          "explanation": "The generated post uses a sarcastic and skeptical tone, which may not match the original user's straightforward and earnest tone. The original post seems to be urging viewers to watch a video for the truth, while the generated post is more cynical and dismissive."
+          "explanation": "The generated post uses a sarcastic and skeptical tone, which may not align with the original post's straightforward and earnest recommendation. The original post seems to be more direct and serious, while the generated post is more cynical and dismissive."
         },
         "style_consistency": {
           "score": 2,
-          "explanation": "The original post is direct and concise, focusing on recommending a video. The generated post, however, is longer, more sarcastic, and includes hashtags and a mention, which are not present in the original."
+          "explanation": "The original post is concise and focused on recommending a specific video, whereas the generated post is longer, uses sarcasm, and includes hashtags and a mention, which are absent in the original. The structure and style differ significantly."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post diverges significantly from the original in both tone and intent. While the original post aims to encourage viewing a specific video for information, the generated post takes a more cynical stance on political events and media coverage, which does not align with the original message."
+        "overall_feedback": "The generated post does not effectively capture the intent or style of the original post. It shifts from a straightforward recommendation to a sarcastic critique of political events, which misaligns with the original message's purpose of encouraging viewers to watch a specific video for truth about January 6."
       },
       "metadata": {
         "original_id": 1.690464047e+18,
@@ -102,14 +102,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 6,
-          "explanation": "The generated post captures a critical tone towards the Biden family, similar to the original. However, it lacks the personal nuance and specific accusations present in the original post."
+          "explanation": "The generated post captures a critical tone towards the Biden family, similar to the original, but lacks the personal nuance and specific accusations present in the original post."
         },
         "style_consistency": {
           "score": 5,
-          "explanation": "The original post is direct and accusatory, while the generated post uses rhetorical questions and hashtags, which changes the style and structure significantly."
+          "explanation": "The style of the generated post is more generalized and uses hashtags and rhetorical questions, which differ from the direct accusation and specific narrative style of the original post."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post maintains a critical stance towards the Biden family, similar to the original, but it diverges in style and specificity. The original post focuses on a specific accusation involving family dynamics, while the generated post generalizes the criticism and introduces new elements like hashtags and rhetorical questions, which alters the intent."
+        "overall_feedback": "The generated post maintains a critical stance towards the Biden family, similar to the original, but it lacks the specific personal accusations and narrative. It also introduces a broader, more generalized critique with hashtags and rhetorical questions, which shifts the focus away from the original intent of highlighting a specific family issue."
       },
       "metadata": {
         "original_id": 1.690310054e+18,
@@ -147,8 +147,8 @@
           "score": 5,
           "explanation": "The original post is straightforward and inquisitive, while the generated post is more expressive and uses rhetorical questions and hashtags, which deviates from the original style."
         },
-        "matching_intent": true,
-        "overall_feedback": "The generated post maintains the core intent of questioning the lack of investigation into financial dealings, but it diverges in tone and style, adopting a more casual and sarcastic approach. While it captures the essence of the original message, it lacks the directness and formality of the original post."
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges from the original in both style and intent. While it maintains a critical tone, it shifts focus from questioning Merrick Garland's actions to a broader critique of political accountability, which alters the original message."
       },
       "metadata": {
         "original_id": 1.690706553e+18,
@@ -180,14 +180,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 7,
-          "explanation": "The generated post maintains a motivational tone similar to the original, but it introduces a more detailed explanation and additional hashtags, which slightly shifts the persona."
+          "explanation": "The generated post captures the essence of valuing time over money, which aligns with the user's persona. However, it introduces a slightly different tone by being more motivational and using hashtags, which may not fully match the original's straightforward and assertive style."
         },
         "style_consistency": {
           "score": 6,
-          "explanation": "The original post is concise and direct, while the generated post is more elaborate and includes hashtags, altering the style and structure."
+          "explanation": "The original post is concise and direct, while the generated post is more elaborate and includes hashtags. The structure and style differ, as the original uses a simple comparison, whereas the generated post expands on the idea with additional advice."
         },
         "matching_intent": true,
-        "overall_feedback": "The generated post captures the essence of valuing time over money, aligning with the original intent. However, it expands on the idea with additional context and hashtags, which affects the style and authenticity slightly. It effectively conveys a similar message but with a different approach."
+        "overall_feedback": "The generated post successfully conveys the core message of valuing time over money, aligning with the intent of the original. However, it diverges in style and tone, being more motivational and less direct. The use of hashtags and additional advice adds a different flavor, which may or may not resonate with the original audience."
       },
       "metadata": {
         "original_id": 1.666071679e+18,
@@ -219,14 +219,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 3,
-          "explanation": "The generated post does not closely match the original user's persona. The original post is neutral and open-ended, while the generated post is opinionated and confrontational."
+          "explanation": "The generated post does not match the original user's persona well. The original post is neutral and open-ended, while the generated post is opinionated and confrontational."
         },
         "style_consistency": {
           "score": 2,
-          "explanation": "The style and structure of the generated post differ significantly from the original. The original is concise and uses a question format, whereas the generated post is longer, uses rhetorical questions, and includes hashtags."
+          "explanation": "The style and structure of the generated post differ significantly from the original. The original is concise and includes a link, whereas the generated post is longer, includes hashtags, and lacks a link."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post does not align well with the original post. It shifts from a neutral inquiry to a specific, opinionated stance on a political issue, which changes the intent and tone significantly."
+        "overall_feedback": "The generated post does not align with the original in terms of tone, style, or intent. The original post is a neutral inquiry, while the generated post is a critical commentary on media bias, which diverges from the original message."
       },
       "metadata": {
         "original_id": 1.690097789e+18,
@@ -258,14 +258,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 4,
-          "explanation": "The generated post lacks the direct and authoritative tone of the original. It introduces a more conversational and questioning style, which may not align with the user's persona."
+          "explanation": "The generated post does not closely match the original user's persona. The original post is direct and authoritative, while the generated post takes a more conversational and questioning tone, which may not align with the user's typical voice."
         },
         "style_consistency": {
           "score": 3,
-          "explanation": "The original post is concise and direct, while the generated post is more elaborate and introduces new themes like accountability and bridging gaps, which deviate from the original style."
+          "explanation": "The style and structure of the generated post differ significantly from the original. The original is concise and straightforward, while the generated post is more elaborate and includes rhetorical questions and hashtags, which were absent in the original."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post diverges significantly from the original in both tone and style. It introduces new themes and questions that shift the focus away from the original intent of recommending an article as essential reading for legal professionals. The generated post does not effectively capture the authoritative and straightforward nature of the original message."
+        "overall_feedback": "The generated post diverges from the original in both tone and style, and it does not clearly convey the same intent. While it touches on themes of legal education and accountability, it lacks the direct endorsement and authoritative tone of the original post."
       },
       "metadata": {
         "original_id": 1.689351301e+18,
@@ -296,15 +296,15 @@
       },
       "llm_evaluation": {
         "authenticity": {
-          "score": 5,
-          "explanation": "The generated post captures a nostalgic tone similar to the original, but it introduces a broader discussion about power couples and uses hashtags, which may not align with the original user's persona."
+          "score": 6,
+          "explanation": "The generated post captures a nostalgic tone similar to the original, but it introduces a more generalized and less personal perspective by asking about current favorite power couples, which slightly deviates from the user's specific admiration for the Obamas."
         },
         "style_consistency": {
-          "score": 4,
-          "explanation": "The original post is concise and focused on a specific couple, while the generated post expands the topic and includes hashtags and emojis, altering the style and structure."
+          "score": 5,
+          "explanation": "The original post is concise and directly expresses a sentiment about the Obamas, while the generated post expands into a broader discussion about power couples and includes hashtags, which alters the style and structure."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post diverges from the original in both style and intent. While it maintains a nostalgic tone, it shifts the focus from a specific admiration for the Obamas to a general discussion about power couples, which may not reflect the original user's intent."
+        "overall_feedback": "The generated post shifts the focus from a specific admiration for the Obamas to a broader discussion about power couples, which changes the original intent. While it maintains a nostalgic tone, it lacks the personal nuance and directness of the original post."
       },
       "metadata": {
         "original_id": 1.690525623e+18,
@@ -336,14 +336,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 6,
-          "explanation": "The generated post captures the supportive and encouraging tone of the original, but it lacks the specific personal nuances and direct references to the '46th brigade' and 'Starlink' that are present in the original post."
+          "explanation": "The generated post captures a supportive and positive tone similar to the original, but lacks the specific personal nuances and direct references to the '46th brigade' and 'Starlink' that are present in the original post."
         },
         "style_consistency": {
           "score": 5,
-          "explanation": "The generated post uses a more generic and enthusiastic style with emojis and a broader call to action, which differs from the straightforward and specific style of the original post."
+          "explanation": "The generated post uses a more generic and enthusiastic style with emojis and a call to action, which differs from the straightforward and informative style of the original post. It also lacks the specific hashtags used in the original."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post conveys a similar supportive message but lacks the specificity and directness of the original. It misses key details such as the mention of 'Starlink' and the '46th brigade,' which are crucial for maintaining the original intent and context."
+        "overall_feedback": "The generated post conveys a general message of support and importance of communication, but it misses specific details and hashtags that are crucial to the original post's intent and style. It also uses a different tone and structure, which affects both authenticity and style consistency."
       },
       "metadata": {
         "original_id": 1.690708219e+18,
@@ -375,14 +375,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 4,
-          "explanation": "The generated post lacks the specific mention of Joe Biden and the Patriot Act, which were central to the original post. The tone is more casual and less direct, which doesn't fully match the original's critical and factual tone."
+          "explanation": "The generated post uses a more casual and conversational tone with emojis and hashtags, which may not match the original user's persona if they typically use a more formal and direct style."
         },
         "style_consistency": {
           "score": 3,
-          "explanation": "The original post is more formal and factual, while the generated post uses a conversational tone with emojis and hashtags, which deviates from the original style."
+          "explanation": "The original post is more formal and direct, focusing on a specific piece of legislation and its historical context, while the generated post is more general and informal, lacking the specific reference to the Patriot Act."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post does not effectively capture the specific critique of Joe Biden and the Patriot Act found in the original. It shifts the focus to a general concern about civil liberties without maintaining the original's directness and specificity. The style and tone are also inconsistent with the original post."
+        "overall_feedback": "The generated post does not closely align with the original in terms of tone, style, or intent. It shifts from a specific critique of the Patriot Act to a general concern about civil liberties, losing the original post's focus and specificity."
       },
       "metadata": {
         "original_id": 1.690697506e+18,
@@ -414,14 +414,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 6,
-          "explanation": "The generated post captures a critical tone similar to the original, but it lacks the specific mention of Mike DeWine and Norfolk Southern, which are key to the user's persona and context."
+          "explanation": "The generated post captures a critical tone similar to the original, but it lacks the specific mention of Mike DeWine and Norfolk Southern, which are key to the user's persona and focus."
         },
         "style_consistency": {
-          "score": 7,
-          "explanation": "The generated post maintains a similar informal and critical style, using emojis and rhetorical questions, but it doesn't replicate the urgency conveyed by the word 'BREAKING' in the original."
+          "score": 5,
+          "explanation": "The generated post uses a more casual and sarcastic tone with emojis and hashtags, which differs from the straightforward and serious style of the original post."
         },
-        "matching_intent": true,
-        "overall_feedback": "The generated post successfully conveys the critical sentiment and intent of the original, but it misses specific details and the urgency present in the original post. It maintains a similar style but could improve in authenticity by including more specific references."
+        "matching_intent": false,
+        "overall_feedback": "The generated post partially captures the critical tone of the original but fails to maintain the specific focus on Mike DeWine and Norfolk Southern. It also shifts to a more casual style, which affects both authenticity and style consistency. The intent is not fully matched as the generated post lacks the urgency and specificity of the original message."
       },
       "metadata": {
         "original_id": 1.626943355e+18,
@@ -452,15 +452,15 @@
       },
       "llm_evaluation": {
         "authenticity": {
-          "score": 7,
-          "explanation": "The generated post captures the user's critical and passionate tone, but it adds more emotional emphasis and exclamation points, which may not fully align with the user's typical expression."
+          "score": 6,
+          "explanation": "The generated post captures the user's critical and passionate tone but adds more emotional emphasis and exclamation marks, which may not fully align with the user's typical expression."
         },
         "style_consistency": {
-          "score": 6,
-          "explanation": "The generated post maintains a similar structure by addressing multiple issues, but it uses more dramatic language and emojis, which slightly deviates from the original's straightforward style."
+          "score": 5,
+          "explanation": "The original post is concise and straightforward, while the generated post is more verbose and uses additional hashtags and emojis, which alters the style."
         },
         "matching_intent": true,
-        "overall_feedback": "The generated post effectively conveys the user's intent of highlighting ongoing global issues and social justice causes. However, it introduces a more intense emotional tone and stylistic elements that slightly differ from the original post's straightforward and factual approach."
+        "overall_feedback": "The generated post successfully conveys the original intent of highlighting ongoing global issues and the need for awareness. However, it diverges in style and tone by being more expressive and detailed, which may not fully match the user's typical posting style."
       },
       "metadata": {
         "original_id": 1.651216251e+18,
@@ -491,15 +491,15 @@
       },
       "llm_evaluation": {
         "authenticity": {
-          "score": 5,
-          "explanation": "The generated post captures a humorous tone but lacks the specific persona nuances of the original, such as the direct engagement with specific individuals and the use of a punchline format."
+          "score": 4,
+          "explanation": "The generated post uses humor and references UK culture with the mention of Marmite, which aligns somewhat with the original tone. However, it lacks the directness and edginess of the original post, which directly references Islamic fundamentalism."
         },
         "style_consistency": {
-          "score": 4,
-          "explanation": "The original post uses a direct question and a punchline format, while the generated post opts for a metaphor and hashtags, deviating from the original structure."
+          "score": 3,
+          "explanation": "The original post is concise and uses a setup-punchline format, while the generated post is more verbose and lacks the punchline structure. The hashtags and additional commentary deviate from the original style."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post diverges from the original in both style and intent. While it maintains a humorous tone, it lacks the direct engagement and specific comedic setup of the original, resulting in a less authentic and consistent representation."
+        "overall_feedback": "The generated post diverges significantly from the original in both tone and structure. It attempts to maintain a humorous approach but fails to capture the directness and specific cultural reference of the original. The intent of addressing a controversial topic through comedy is not clearly matched."
       },
       "metadata": {
         "original_id": 1.690639915e+18,
@@ -531,14 +531,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 3,
-          "explanation": "The generated post lacks the direct and confrontational tone of the original. The original post is accusatory and specific, while the generated post is more generalized and lacks the personal nuances of the original."
+          "explanation": "The generated post lacks the direct and confrontational tone of the original post. It uses a more general and less accusatory language, which does not match the original user's persona."
         },
         "style_consistency": {
           "score": 2,
-          "explanation": "The original post is direct and provocative, using specific accusations and a call to action. The generated post is vague, lacks specificity, and does not maintain the same aggressive style."
+          "explanation": "The original post is direct and provocative, specifically targeting Best Buy and using strong language. The generated post is more generic and lacks the specific call to action and direct accusation present in the original."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post fails to capture the accusatory and confrontational nature of the original post. It lacks specificity and does not address the same issues or target the same entity. The tone is more generalized and lacks the directness and urgency of the original message."
+        "overall_feedback": "The generated post fails to capture the directness and specific accusations of discrimination present in the original post. It lacks the confrontational tone and specific targeting of Best Buy, resulting in a mismatch in both style and intent."
       },
       "metadata": {
         "original_id": 1.690477782e+18,
@@ -570,14 +570,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 6,
-          "explanation": "The generated post captures a positive and uplifting tone similar to the original, but it uses more elaborate language and emojis, which may not fully match the user's simpler and more direct style."
+          "explanation": "The generated post captures a positive and uplifting tone similar to the original, but it uses more elaborate language and emojis, which may not fully match the user's simpler and more direct persona."
         },
         "style_consistency": {
           "score": 5,
-          "explanation": "The original post is concise and uses a straightforward structure, while the generated post is more verbose and includes hashtags, which the original does not."
+          "explanation": "The original post is concise and straightforward, while the generated post is more verbose and uses hashtags, which the original does not. This results in a noticeable difference in style."
         },
         "matching_intent": true,
-        "overall_feedback": "The generated post successfully conveys a message of peace and love, aligning with the intent of the original. However, it diverges in style and tone, being more elaborate and less direct than the original post."
+        "overall_feedback": "The generated post successfully conveys a message of peace and love, aligning with the intent of the original. However, it diverges in style and authenticity due to its more elaborate language and structure."
       },
       "metadata": {
         "original_id": 1.676173805e+18,
@@ -609,14 +609,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 7,
-          "explanation": "The generated post captures the user's frustration and advocacy for reproductive rights, but it lacks the direct confrontation and specific references to political parties found in the original post."
+          "explanation": "The generated post captures the user's frustration and advocacy for reproductive rights, but it lacks the direct address to Republicans and the specific mention of contraception, which are personal nuances in the original post."
         },
         "style_consistency": {
           "score": 6,
-          "explanation": "The generated post uses a more modern and informal tone with emojis and hashtags, which differs from the more straightforward and direct style of the original post."
+          "explanation": "The generated post maintains a similar tone of urgency and anger, but it uses more modern expressions and emojis, which slightly alters the original style. The structure is also different, with hashtags and a call to action."
         },
         "matching_intent": true,
-        "overall_feedback": "The generated post successfully conveys the intent of advocating for reproductive rights and privacy. However, it diverges in tone and style, opting for a more generalized and less confrontational approach compared to the original post's direct critique of Republicans."
+        "overall_feedback": "The generated post effectively conveys the user's anger and advocacy for reproductive rights, aligning with the original intent. However, it misses some specific elements and nuances present in the original post, such as the direct address to Republicans and the mention of contraception. The style is somewhat consistent but incorporates more modern social media elements like emojis and hashtags."
       },
       "metadata": {
         "original_id": 1.690717746e+18,
@@ -648,14 +648,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 3,
-          "explanation": "The generated post does not closely match the original user's persona. The original post is brief and cryptic, while the generated post is more verbose and speculative, which may not align with the user's typical tone."
+          "explanation": "The generated post does not closely match the tone or voice of the original post. The original is brief and cryptic, while the generated post is more verbose and speculative."
         },
         "style_consistency": {
           "score": 2,
-          "explanation": "The style of the generated post is significantly different from the original. The original is concise and uses ellipses, while the generated post is longer, uses rhetorical questions, and includes hashtags."
+          "explanation": "The original post is concise and uses ellipsis for emphasis, whereas the generated post is longer, uses rhetorical questions, and includes hashtags, which are absent in the original."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post diverges significantly from the original in terms of tone, style, and intent. It introduces new elements like speculation and hashtags that were not present in the original, and it fails to capture the brevity and ambiguity of the original post."
+        "overall_feedback": "The generated post diverges significantly from the original in terms of tone, style, and intent. The original post is succinct and possibly teasing or leading, while the generated post is more accusatory and focused on political accountability, which does not align with the original's ambiguous nature."
       },
       "metadata": {
         "original_id": 1.690621332e+18,
@@ -687,14 +687,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 7,
-          "explanation": "The generated post captures a similar sarcastic and critical tone towards the GOP, which aligns with the user's persona. However, it introduces a more casual and conversational style with phrases like 'Shocking...not really' and emojis, which may not fully match the original tone."
+          "explanation": "The generated post captures a similar critical tone and sarcasm towards the GOP, which aligns with the user's persona. However, it introduces a more casual and conversational style with emojis and rhetorical questions, which may not fully match the original tone."
         },
         "style_consistency": {
           "score": 6,
-          "explanation": "While the generated post maintains a critical stance, it diverges in style by using more informal language and rhetorical questions. The original post is more straightforward and factual, whereas the generated post is more expressive and uses humor."
+          "explanation": "The original post is more straightforward and factual, while the generated post uses a more informal and humorous style. The structure is also different, with the generated post being more elaborate and less direct."
         },
         "matching_intent": true,
-        "overall_feedback": "The generated post successfully conveys the original intent of criticizing the GOP's handling of whistleblowers and highlighting hypocrisy. However, it adopts a more casual and humorous style, which may not fully align with the original post's tone and structure."
+        "overall_feedback": "The generated post successfully conveys the critical stance towards the GOP and highlights the issue of hypocrisy, aligning with the intent of the original post. However, it diverges in style and tone, opting for a more casual and humorous approach, which may not fully reflect the original user's style."
       },
       "metadata": {
         "original_id": 1.690535546e+18,
@@ -726,14 +726,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 6,
-          "explanation": "The generated post maintains a congratulatory tone similar to the original, but lacks specific mentions of individuals and their achievements, which are key personal nuances in the original post."
+          "explanation": "The generated post captures the celebratory tone and supportive nature of the original post, but lacks specific mentions of individuals and their achievements, which are key personal nuances in the original."
         },
         "style_consistency": {
           "score": 5,
-          "explanation": "The generated post is more generalized and lacks the concise structure of the original post, which specifically names the champions and their divisions."
+          "explanation": "The generated post maintains a formal and congratulatory style but deviates from the original's structure by omitting specific names and achievements, which are central to the original post's style."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post captures the celebratory intent but fails to match the specificity and personal recognition present in the original post. It lacks the detailed acknowledgment of individual achievements and the structured style that highlights specific winners, which are crucial elements of the original message."
+        "overall_feedback": "The generated post captures the general celebratory intent but fails to match the specific intent of recognizing individual achievements. It lacks the detailed acknowledgments present in the original, which are crucial for authenticity and style consistency."
       },
       "metadata": {
         "original_id": 1.57450195e+18,
@@ -764,15 +764,15 @@
       },
       "llm_evaluation": {
         "authenticity": {
-          "score": 4,
-          "explanation": "The generated post uses humor and a casual tone, which might align with the user's persona if they typically use humor. However, it diverges significantly from the original post's straightforward and informative tone."
+          "score": 5,
+          "explanation": "The generated post uses humor and a casual tone, which may align with the user's persona if they typically use humor in their posts. However, it lacks the directness and professional tone of the original post."
         },
         "style_consistency": {
-          "score": 3,
-          "explanation": "The original post is concise and focused on providing a specific insight about sales and social media engagement. The generated post, while creative, shifts to a more humorous and less structured style, lacking the direct comparison and factual tone of the original."
+          "score": 4,
+          "explanation": "The original post is straightforward and informative, focusing on sales statistics. The generated post, however, is more conversational and humorous, deviating from the original style."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post does not effectively capture the intent or style of the original. While it introduces a humorous take on persistence, it misses the original post's focus on the specific correlation between sales calls and social media engagement. The tone and structure are also inconsistent with the original's straightforward and informative approach."
+        "overall_feedback": "The generated post diverges significantly from the original in both tone and intent. While it introduces a humorous element, it fails to convey the same message about persistence in sales and social media engagement. To improve, the generated post should focus more on the statistical and informative nature of the original post."
       },
       "metadata": {
         "original_id": 1.690701393e+18,
@@ -804,14 +804,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 6,
-          "explanation": "The generated post captures some of the original post's frustration and disbelief but uses a more humorous and less direct tone, which may not fully match the original user's persona."
+          "explanation": "The generated post captures a critical and questioning tone similar to the original, but it introduces humor and a call to action that may not align with the original user's straightforward and blunt style."
         },
         "style_consistency": {
           "score": 5,
-          "explanation": "The original post is concise and direct, while the generated post is longer, uses emojis, and includes hashtags, which deviates from the original style."
+          "explanation": "The original post is direct and uses strong language, while the generated post is more elaborate and includes hashtags and emojis, which changes the style significantly."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post attempts to convey a similar sentiment of disbelief and criticism but does so in a more playful and less direct manner. It lacks the straightforwardness and intensity of the original post, and the inclusion of hashtags and emojis changes the tone significantly."
+        "overall_feedback": "The generated post diverges from the original in both tone and style, introducing humor and a broader call to action that shifts the focus from a direct critique to a more generalized political commentary. While it maintains a critical stance, it does not match the original post's straightforward and blunt intent."
       },
       "metadata": {
         "original_id": 1.690714816e+18,
@@ -843,14 +843,14 @@
       "llm_evaluation": {
         "authenticity": {
           "score": 3,
-          "explanation": "The generated post does not closely match the user's persona. The original post is concise and cryptic, while the generated post is verbose and motivational, which may not align with the user's typical tone."
+          "explanation": "The generated post does not closely match the original user's persona. The original post is concise and cryptic, while the generated post is verbose and motivational, which suggests a different tone and voice."
         },
         "style_consistency": {
           "score": 2,
-          "explanation": "The style of the generated post is significantly different from the original. The original is short and uses a hashtag, while the generated post is lengthy, uses emojis, and includes a call to action with a link."
+          "explanation": "The style of the generated post is significantly different from the original. The original is short and uses a hashtag, while the generated post is longer, uses emojis, and includes a call to action with a link."
         },
         "matching_intent": false,
-        "overall_feedback": "The generated post diverges significantly from the original in terms of tone, style, and intent. It transforms a brief, possibly introspective statement into a motivational message, which may not reflect the user's original intent."
+        "overall_feedback": "The generated post fails to capture the brevity and enigmatic nature of the original post. It introduces a motivational theme and a call to action that diverges from the original intent, which seems more personal and reflective."
       },
       "metadata": {
         "original_id": 1.670154657e+18,
@@ -859,10 +859,66 @@
       }
     }
   ],
-  "aggregate_metrics": {},
+  "aggregate_metrics": {
+    "rouge": {
+      "rouge1": {
+        "precision": {
+          "mean": 0.11779601524988706,
+          "std": 0.0
+        },
+        "recall": {
+          "mean": 0.19639939829610228,
+          "std": 0.0
+        },
+        "fmeasure": {
+          "mean": 0.1409401390009926,
+          "std": 0.0
+        }
+      },
+      "rouge2": {
+        "precision": {
+          "mean": 0.01494887084877172,
+          "std": 0.0
+        },
+        "recall": {
+          "mean": 0.028026940207619432,
+          "std": 0.0
+        },
+        "fmeasure": {
+          "mean": 0.019150318735511537,
+          "std": 0.0
+        }
+      },
+      "rougeL": {
+        "precision": {
+          "mean": 0.08506107301758768,
+          "std": 0.0
+        },
+        "recall": {
+          "mean": 0.1464083553522881,
+          "std": 0.0
+        },
+        "fmeasure": {
+          "mean": 0.102873714729175,
+          "std": 0.0
+        }
+      }
+    },
+    "llm_evaluation": {
+      "authenticity": {
+        "mean": 5.0,
+        "std": 0.0
+      },
+      "style_consistency": {
+        "mean": 4.0,
+        "std": 0.0
+      },
+      "matching_intent_ratio": 0.22727272727272727
+    }
+  },
   "metadata": {
     "total_evaluated": 22,
-    "evaluation_timestamp": "2024-12-24T09:53:14.194952",
+    "evaluation_timestamp": "2024-12-24T16:24:46.106726",
     "version": "1.0"
   }
 }
