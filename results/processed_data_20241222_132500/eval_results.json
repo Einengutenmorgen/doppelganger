@@ -1,0 +1,868 @@
+{
+  "individual_evaluations": [
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.06666666666666667,
+          "recall": 0.1875,
+          "fmeasure": 0.09836065573770493
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.044444444444444446,
+          "recall": 0.125,
+          "fmeasure": 0.06557377049180328
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.40669775009155273
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 3,
+          "explanation": "The generated post does not match the original user's persona well. The original post is direct and expresses a clear preference with a specific reason, while the generated post uses humor and a more generalized commentary on social media platforms."
+        },
+        "style_consistency": {
+          "score": 2,
+          "explanation": "The style of the generated post is quite different from the original. The original is straightforward and somewhat provocative, whereas the generated post is light-hearted, uses humor, and includes hashtags."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post fails to capture the directness and specific critique present in the original post. It shifts the focus from a personal preference based on user interactions to a more general commentary on social media platforms, losing the original intent and tone."
+      },
+      "metadata": {
+        "original_id": 1.687473934e+18,
+        "generated_id": "1.05272263315268e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:27.017300"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.044444444444444446,
+          "recall": 0.08695652173913043,
+          "fmeasure": 0.058823529411764705
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.044444444444444446,
+          "recall": 0.08695652173913043,
+          "fmeasure": 0.058823529411764705
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.4097588360309601
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 3,
+          "explanation": "The generated post uses a sarcastic and skeptical tone, which may not match the original user's straightforward and earnest tone. The original post seems to be urging viewers to watch a video for the truth, while the generated post is more cynical and dismissive."
+        },
+        "style_consistency": {
+          "score": 2,
+          "explanation": "The original post is direct and concise, focusing on recommending a video. The generated post, however, is longer, more sarcastic, and includes hashtags and a mention, which are not present in the original."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges significantly from the original in both tone and intent. While the original post aims to encourage viewing a specific video for information, the generated post takes a more cynical stance on political events and media coverage, which does not align with the original message."
+      },
+      "metadata": {
+        "original_id": 1.690464047e+18,
+        "generated_id": "1.0878553777927537e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:30.507203"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.09090909090909091,
+          "recall": 0.11428571428571428,
+          "fmeasure": 0.10126582278481013
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.06818181818181818,
+          "recall": 0.08571428571428572,
+          "fmeasure": 0.07594936708860758
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.45070940256118774
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post captures a critical tone towards the Biden family, similar to the original. However, it lacks the personal nuance and specific accusations present in the original post."
+        },
+        "style_consistency": {
+          "score": 5,
+          "explanation": "The original post is direct and accusatory, while the generated post uses rhetorical questions and hashtags, which changes the style and structure significantly."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post maintains a critical stance towards the Biden family, similar to the original, but it diverges in style and specificity. The original post focuses on a specific accusation involving family dynamics, while the generated post generalizes the criticism and introduces new elements like hashtags and rhetorical questions, which alters the intent."
+      },
+      "metadata": {
+        "original_id": 1.690310054e+18,
+        "generated_id": "1.1063147026891776e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:35.305750"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.1346153846153846,
+          "recall": 0.25925925925925924,
+          "fmeasure": 0.17721518987341772
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.09615384615384616,
+          "recall": 0.18518518518518517,
+          "fmeasure": 0.12658227848101267
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.5569799542427063
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post captures a similar tone of frustration and skepticism as the original, but it introduces a more sarcastic and informal voice that may not fully align with the user's persona."
+        },
+        "style_consistency": {
+          "score": 5,
+          "explanation": "The original post is straightforward and inquisitive, while the generated post is more expressive and uses rhetorical questions and hashtags, which deviates from the original style."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post maintains the core intent of questioning the lack of investigation into financial dealings, but it diverges in tone and style, adopting a more casual and sarcastic approach. While it captures the essence of the original message, it lacks the directness and formality of the original post."
+      },
+      "metadata": {
+        "original_id": 1.690706553e+18,
+        "generated_id": "1.1142904141048504e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:38.304230"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.14285714285714285,
+          "recall": 0.3,
+          "fmeasure": 0.19354838709677416
+        },
+        "rouge2": {
+          "precision": 0.07317073170731707,
+          "recall": 0.15789473684210525,
+          "fmeasure": 0.09999999999999999
+        },
+        "rougeL": {
+          "precision": 0.14285714285714285,
+          "recall": 0.3,
+          "fmeasure": 0.19354838709677416
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6941137313842773
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 7,
+          "explanation": "The generated post maintains a motivational tone similar to the original, but it introduces a more detailed explanation and additional hashtags, which slightly shifts the persona."
+        },
+        "style_consistency": {
+          "score": 6,
+          "explanation": "The original post is concise and direct, while the generated post is more elaborate and includes hashtags, altering the style and structure."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post captures the essence of valuing time over money, aligning with the original intent. However, it expands on the idea with additional context and hashtags, which affects the style and authenticity slightly. It effectively conveys a similar message but with a different approach."
+      },
+      "metadata": {
+        "original_id": 1.666071679e+18,
+        "generated_id": "1.3540905512392704e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:41.135474"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.02564102564102564,
+          "recall": 0.07692307692307693,
+          "fmeasure": 0.038461538461538464
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.02564102564102564,
+          "recall": 0.07692307692307693,
+          "fmeasure": 0.038461538461538464
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.28386563062667847
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 3,
+          "explanation": "The generated post does not closely match the original user's persona. The original post is neutral and open-ended, while the generated post is opinionated and confrontational."
+        },
+        "style_consistency": {
+          "score": 2,
+          "explanation": "The style and structure of the generated post differ significantly from the original. The original is concise and uses a question format, whereas the generated post is longer, uses rhetorical questions, and includes hashtags."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post does not align well with the original post. It shifts from a neutral inquiry to a specific, opinionated stance on a political issue, which changes the intent and tone significantly."
+      },
+      "metadata": {
+        "original_id": 1.690097789e+18,
+        "generated_id": "1.3740151157297234e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:44.672748"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.1956521739130435,
+          "recall": 0.3,
+          "fmeasure": 0.23684210526315788
+        },
+        "rouge2": {
+          "precision": 0.022222222222222223,
+          "recall": 0.034482758620689655,
+          "fmeasure": 0.027027027027027025
+        },
+        "rougeL": {
+          "precision": 0.10869565217391304,
+          "recall": 0.16666666666666666,
+          "fmeasure": 0.13157894736842102
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6937150359153748
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 4,
+          "explanation": "The generated post lacks the direct and authoritative tone of the original. It introduces a more conversational and questioning style, which may not align with the user's persona."
+        },
+        "style_consistency": {
+          "score": 3,
+          "explanation": "The original post is concise and direct, while the generated post is more elaborate and introduces new themes like accountability and bridging gaps, which deviate from the original style."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges significantly from the original in both tone and style. It introduces new themes and questions that shift the focus away from the original intent of recommending an article as essential reading for legal professionals. The generated post does not effectively capture the authoritative and straightforward nature of the original message."
+      },
+      "metadata": {
+        "original_id": 1.689351301e+18,
+        "generated_id": "1.4587128586577592e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:48.513957"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.09523809523809523,
+          "recall": 0.2222222222222222,
+          "fmeasure": 0.13333333333333333
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.07142857142857142,
+          "recall": 0.16666666666666666,
+          "fmeasure": 0.1
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.4834880828857422
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 5,
+          "explanation": "The generated post captures a nostalgic tone similar to the original, but it introduces a broader discussion about power couples and uses hashtags, which may not align with the original user's persona."
+        },
+        "style_consistency": {
+          "score": 4,
+          "explanation": "The original post is concise and focused on a specific couple, while the generated post expands the topic and includes hashtags and emojis, altering the style and structure."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges from the original in both style and intent. While it maintains a nostalgic tone, it shifts the focus from a specific admiration for the Obamas to a general discussion about power couples, which may not reflect the original user's intent."
+      },
+      "metadata": {
+        "original_id": 1.690525623e+18,
+        "generated_id": "1.524431582144041e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:52.616225"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.30952380952380953,
+          "recall": 0.3170731707317073,
+          "fmeasure": 0.3132530120481927
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.19047619047619047,
+          "recall": 0.1951219512195122,
+          "fmeasure": 0.1927710843373494
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.7129533886909485
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post captures the supportive and encouraging tone of the original, but it lacks the specific personal nuances and direct references to the '46th brigade' and 'Starlink' that are present in the original post."
+        },
+        "style_consistency": {
+          "score": 5,
+          "explanation": "The generated post uses a more generic and enthusiastic style with emojis and a broader call to action, which differs from the straightforward and specific style of the original post."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post conveys a similar supportive message but lacks the specificity and directness of the original. It misses key details such as the mention of 'Starlink' and the '46th brigade,' which are crucial for maintaining the original intent and context."
+      },
+      "metadata": {
+        "original_id": 1.690708219e+18,
+        "generated_id": "1.552055334302208e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:56.292739"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.14893617021276595,
+          "recall": 0.13725490196078433,
+          "fmeasure": 0.14285714285714288
+        },
+        "rouge2": {
+          "precision": 0.021739130434782608,
+          "recall": 0.02,
+          "fmeasure": 0.020833333333333332
+        },
+        "rougeL": {
+          "precision": 0.0851063829787234,
+          "recall": 0.0784313725490196,
+          "fmeasure": 0.08163265306122448
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.575724184513092
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 4,
+          "explanation": "The generated post lacks the specific mention of Joe Biden and the Patriot Act, which were central to the original post. The tone is more casual and less direct, which doesn't fully match the original's critical and factual tone."
+        },
+        "style_consistency": {
+          "score": 3,
+          "explanation": "The original post is more formal and factual, while the generated post uses a conversational tone with emojis and hashtags, which deviates from the original style."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post does not effectively capture the specific critique of Joe Biden and the Patriot Act found in the original. It shifts the focus to a general concern about civil liberties without maintaining the original's directness and specificity. The style and tone are also inconsistent with the original post."
+      },
+      "metadata": {
+        "original_id": 1.690697506e+18,
+        "generated_id": "1.6032068915214295e+18_gen_0",
+        "timestamp": "2024-12-23T15:29:59.570356"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.16216216216216217,
+          "recall": 0.15384615384615385,
+          "fmeasure": 0.15789473684210525
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.05405405405405406,
+          "recall": 0.05128205128205128,
+          "fmeasure": 0.05263157894736842
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.580197811126709
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post captures a critical tone similar to the original, but it lacks the specific mention of Mike DeWine and Norfolk Southern, which are key to the user's persona and context."
+        },
+        "style_consistency": {
+          "score": 7,
+          "explanation": "The generated post maintains a similar informal and critical style, using emojis and rhetorical questions, but it doesn't replicate the urgency conveyed by the word 'BREAKING' in the original."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post successfully conveys the critical sentiment and intent of the original, but it misses specific details and the urgency present in the original post. It maintains a similar style but could improve in authenticity by including more specific references."
+      },
+      "metadata": {
+        "original_id": 1.626943355e+18,
+        "generated_id": "1.6126174631196344e+18_gen_0",
+        "timestamp": "2024-12-23T15:30:02.317874"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.1694915254237288,
+          "recall": 0.5,
+          "fmeasure": 0.25316455696202533
+        },
+        "rouge2": {
+          "precision": 0.034482758620689655,
+          "recall": 0.10526315789473684,
+          "fmeasure": 0.051948051948051945
+        },
+        "rougeL": {
+          "precision": 0.11864406779661017,
+          "recall": 0.35,
+          "fmeasure": 0.17721518987341772
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6818045377731323
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 7,
+          "explanation": "The generated post captures the user's critical and passionate tone, but it adds more emotional emphasis and exclamation points, which may not fully align with the user's typical expression."
+        },
+        "style_consistency": {
+          "score": 6,
+          "explanation": "The generated post maintains a similar structure by addressing multiple issues, but it uses more dramatic language and emojis, which slightly deviates from the original's straightforward style."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post effectively conveys the user's intent of highlighting ongoing global issues and social justice causes. However, it introduces a more intense emotional tone and stylistic elements that slightly differ from the original post's straightforward and factual approach."
+      },
+      "metadata": {
+        "original_id": 1.651216251e+18,
+        "generated_id": "1.6154129375433236e+18_gen_0",
+        "timestamp": "2024-12-23T15:30:04.925486"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.14285714285714285,
+          "recall": 0.21739130434782608,
+          "fmeasure": 0.17241379310344826
+        },
+        "rouge2": {
+          "precision": 0.08823529411764706,
+          "recall": 0.13636363636363635,
+          "fmeasure": 0.10714285714285714
+        },
+        "rougeL": {
+          "precision": 0.14285714285714285,
+          "recall": 0.21739130434782608,
+          "fmeasure": 0.17241379310344826
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.5970783233642578
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 5,
+          "explanation": "The generated post captures a humorous tone but lacks the specific persona nuances of the original, such as the direct engagement with specific individuals and the use of a punchline format."
+        },
+        "style_consistency": {
+          "score": 4,
+          "explanation": "The original post uses a direct question and a punchline format, while the generated post opts for a metaphor and hashtags, deviating from the original structure."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges from the original in both style and intent. While it maintains a humorous tone, it lacks the direct engagement and specific comedic setup of the original, resulting in a less authentic and consistent representation."
+      },
+      "metadata": {
+        "original_id": 1.690639915e+18,
+        "generated_id": "1495726466.0_gen_0",
+        "timestamp": "2024-12-23T15:30:10.120060"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.0967741935483871,
+          "recall": 0.06,
+          "fmeasure": 0.07407407407407407
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.0967741935483871,
+          "recall": 0.06,
+          "fmeasure": 0.07407407407407407
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.43401631712913513
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 3,
+          "explanation": "The generated post lacks the direct and confrontational tone of the original. The original post is accusatory and specific, while the generated post is more generalized and lacks the personal nuances of the original."
+        },
+        "style_consistency": {
+          "score": 2,
+          "explanation": "The original post is direct and provocative, using specific accusations and a call to action. The generated post is vague, lacks specificity, and does not maintain the same aggressive style."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post fails to capture the accusatory and confrontational nature of the original post. It lacks specificity and does not address the same issues or target the same entity. The tone is more generalized and lacks the directness and urgency of the original message."
+      },
+      "metadata": {
+        "original_id": 1.690477782e+18,
+        "generated_id": "18254098.0_gen_0",
+        "timestamp": "2024-12-23T15:30:13.085338"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.06060606060606061,
+          "recall": 0.14285714285714285,
+          "fmeasure": 0.0851063829787234
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.06060606060606061,
+          "recall": 0.14285714285714285,
+          "fmeasure": 0.0851063829787234
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6693820953369141
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post captures a positive and uplifting tone similar to the original, but it uses more elaborate language and emojis, which may not fully match the user's simpler and more direct style."
+        },
+        "style_consistency": {
+          "score": 5,
+          "explanation": "The original post is concise and uses a straightforward structure, while the generated post is more verbose and includes hashtags, which the original does not."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post successfully conveys a message of peace and love, aligning with the intent of the original. However, it diverges in style and tone, being more elaborate and less direct than the original post."
+      },
+      "metadata": {
+        "original_id": 1.676173805e+18,
+        "generated_id": "254185636.0_gen_0",
+        "timestamp": "2024-12-23T15:30:16.083743"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.13725490196078433,
+          "recall": 0.11864406779661017,
+          "fmeasure": 0.1272727272727273
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.11764705882352941,
+          "recall": 0.1016949152542373,
+          "fmeasure": 0.1090909090909091
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6351451873779297
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 7,
+          "explanation": "The generated post captures the user's frustration and advocacy for reproductive rights, but it lacks the direct confrontation and specific references to political parties found in the original post."
+        },
+        "style_consistency": {
+          "score": 6,
+          "explanation": "The generated post uses a more modern and informal tone with emojis and hashtags, which differs from the more straightforward and direct style of the original post."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post successfully conveys the intent of advocating for reproductive rights and privacy. However, it diverges in tone and style, opting for a more generalized and less confrontational approach compared to the original post's direct critique of Republicans."
+      },
+      "metadata": {
+        "original_id": 1.690717746e+18,
+        "generated_id": "29235878.0_gen_0",
+        "timestamp": "2024-12-23T15:30:20.460448"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.023255813953488372,
+          "recall": 0.125,
+          "fmeasure": 0.03921568627450981
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.023255813953488372,
+          "recall": 0.125,
+          "fmeasure": 0.03921568627450981
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.36631080508232117
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 3,
+          "explanation": "The generated post does not closely match the original user's persona. The original post is brief and cryptic, while the generated post is more verbose and speculative, which may not align with the user's typical tone."
+        },
+        "style_consistency": {
+          "score": 2,
+          "explanation": "The style of the generated post is significantly different from the original. The original is concise and uses ellipses, while the generated post is longer, uses rhetorical questions, and includes hashtags."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges significantly from the original in terms of tone, style, and intent. It introduces new elements like speculation and hashtags that were not present in the original, and it fails to capture the brevity and ambiguity of the original post."
+      },
+      "metadata": {
+        "original_id": 1.690621332e+18,
+        "generated_id": "414438377.0_gen_0",
+        "timestamp": "2024-12-23T15:30:33.422487"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.14516129032258066,
+          "recall": 0.1956521739130435,
+          "fmeasure": 0.16666666666666669
+        },
+        "rouge2": {
+          "precision": 0.01639344262295082,
+          "recall": 0.022222222222222223,
+          "fmeasure": 0.01886792452830189
+        },
+        "rougeL": {
+          "precision": 0.0967741935483871,
+          "recall": 0.13043478260869565,
+          "fmeasure": 0.1111111111111111
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6115346550941467
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 7,
+          "explanation": "The generated post captures a similar sarcastic and critical tone towards the GOP, which aligns with the user's persona. However, it introduces a more casual and conversational style with phrases like 'Shocking...not really' and emojis, which may not fully match the original tone."
+        },
+        "style_consistency": {
+          "score": 6,
+          "explanation": "While the generated post maintains a critical stance, it diverges in style by using more informal language and rhetorical questions. The original post is more straightforward and factual, whereas the generated post is more expressive and uses humor."
+        },
+        "matching_intent": true,
+        "overall_feedback": "The generated post successfully conveys the original intent of criticizing the GOP's handling of whistleblowers and highlighting hypocrisy. However, it adopts a more casual and humorous style, which may not fully align with the original post's tone and structure."
+      },
+      "metadata": {
+        "original_id": 1.690535546e+18,
+        "generated_id": "7.544215523518505e+17_gen_0",
+        "timestamp": "2024-12-23T15:30:37.251137"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.18181818181818182,
+          "recall": 0.3684210526315789,
+          "fmeasure": 0.24347826086956523
+        },
+        "rouge2": {
+          "precision": 0.05263157894736842,
+          "recall": 0.10810810810810811,
+          "fmeasure": 0.07079646017699115
+        },
+        "rougeL": {
+          "precision": 0.12987012987012986,
+          "recall": 0.2631578947368421,
+          "fmeasure": 0.17391304347826086
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6139863729476929
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post maintains a congratulatory tone similar to the original, but lacks specific mentions of individuals and their achievements, which are key personal nuances in the original post."
+        },
+        "style_consistency": {
+          "score": 5,
+          "explanation": "The generated post is more generalized and lacks the concise structure of the original post, which specifically names the champions and their divisions."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post captures the celebratory intent but fails to match the specificity and personal recognition present in the original post. It lacks the detailed acknowledgment of individual achievements and the structured style that highlights specific winners, which are crucial elements of the original message."
+      },
+      "metadata": {
+        "original_id": 1.57450195e+18,
+        "generated_id": "77059536.0_gen_0",
+        "timestamp": "2024-12-23T15:30:41.387960"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.11764705882352941,
+          "recall": 0.1875,
+          "fmeasure": 0.14457831325301201
+        },
+        "rouge2": {
+          "precision": 0.02,
+          "recall": 0.03225806451612903,
+          "fmeasure": 0.024691358024691357
+        },
+        "rougeL": {
+          "precision": 0.0784313725490196,
+          "recall": 0.125,
+          "fmeasure": 0.0963855421686747
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.6341938972473145
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 4,
+          "explanation": "The generated post uses humor and a casual tone, which might align with the user's persona if they typically use humor. However, it diverges significantly from the original post's straightforward and informative tone."
+        },
+        "style_consistency": {
+          "score": 3,
+          "explanation": "The original post is concise and focused on providing a specific insight about sales and social media engagement. The generated post, while creative, shifts to a more humorous and less structured style, lacking the direct comparison and factual tone of the original."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post does not effectively capture the intent or style of the original. While it introduces a humorous take on persistence, it misses the original post's focus on the specific correlation between sales calls and social media engagement. The tone and structure are also inconsistent with the original's straightforward and informative approach."
+      },
+      "metadata": {
+        "original_id": 1.690701393e+18,
+        "generated_id": "8.251444442989978e+17_gen_0",
+        "timestamp": "2024-12-23T15:30:48.478203"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.1,
+          "recall": 0.25,
+          "fmeasure": 0.14285714285714288
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.075,
+          "recall": 0.1875,
+          "fmeasure": 0.10714285714285712
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.4693756699562073
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 6,
+          "explanation": "The generated post captures some of the original post's frustration and disbelief but uses a more humorous and less direct tone, which may not fully match the original user's persona."
+        },
+        "style_consistency": {
+          "score": 5,
+          "explanation": "The original post is concise and direct, while the generated post is longer, uses emojis, and includes hashtags, which deviates from the original style."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post attempts to convey a similar sentiment of disbelief and criticism but does so in a more playful and less direct manner. It lacks the straightforwardness and intensity of the original post, and the inclusion of hashtags and emojis changes the tone significantly."
+      },
+      "metadata": {
+        "original_id": 1.690714816e+18,
+        "generated_id": "8.341912590570004e+17_gen_0",
+        "timestamp": "2024-12-23T15:30:52.279407"
+      }
+    },
+    {
+      "rouge_scores": {
+        "rouge1": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rouge2": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        },
+        "rougeL": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "fmeasure": 0.0
+        }
+      },
+      "similarity_scores": {
+        "semantic_similarity": 0.33030444383621216
+      },
+      "llm_evaluation": {
+        "authenticity": {
+          "score": 3,
+          "explanation": "The generated post does not closely match the user's persona. The original post is concise and cryptic, while the generated post is verbose and motivational, which may not align with the user's typical tone."
+        },
+        "style_consistency": {
+          "score": 2,
+          "explanation": "The style of the generated post is significantly different from the original. The original is short and uses a hashtag, while the generated post is lengthy, uses emojis, and includes a call to action with a link."
+        },
+        "matching_intent": false,
+        "overall_feedback": "The generated post diverges significantly from the original in terms of tone, style, and intent. It transforms a brief, possibly introspective statement into a motivational message, which may not reflect the user's original intent."
+      },
+      "metadata": {
+        "original_id": 1.670154657e+18,
+        "generated_id": "9.070116767797536e+17_gen_0",
+        "timestamp": "2024-12-23T15:30:55.065313"
+      }
+    }
+  ],
+  "aggregate_metrics": {},
+  "metadata": {
+    "total_evaluated": 22,
+    "evaluation_timestamp": "2024-12-24T09:53:14.194952",
+    "version": "1.0"
+  }
+}

@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Executable script for running the preprocessing pipeline."""
+
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = str(Path(__file__).parent.parent)
+sys.path.append(project_root)
+
+from research_case.processors.preprocess import DataPreprocessor
+
+def main():
+    """Main execution function for the preprocessing pipeline."""
+    try:
+        # Get input file path
+        input_file = os.path.join(project_root, "data", "df_test_10k.csv")
+        
+        # Initialize preprocessor
+        preprocessor = DataPreprocessor(input_file)
+        
+        # Run processing
+        posts_file, replies_file, users_file, conversations_file = preprocessor.process()
+        
+        print("\nProcessing completed successfully!")
+        print(f"Output files:")
+        print(f"Posts: {posts_file}")
+        print(f"Replies: {replies_file}")
+        print(f"Users: {users_file}")
+        print(f"Conversations: {conversations_file}")
+        
+    except Exception as e:
+        print(f"Error in preprocessing pipeline: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

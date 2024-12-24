@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+import logging
+from dotenv import load_dotenv
+import traceback2 as traceback
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+print("Python Path:", sys.path)
+
+
+from research_case.analyzers.persona_analysis import PersonaAnalyzer
+from research_case.analyzers.llm_client import LLMClient
+
+load_dotenv()
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def main():
+    # Step 1: Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Analyze user personas from social media posts and conversations."
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        required=True,
+        help="Path to the input JSON file containing user posts or conversations."
+    )
+    parser.add_argument(
+        "--conversations",
+        type=str,
+        required=False,
+        help="Path to the optional JSON file containing user conversations."
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        help="Path to save the persona analysis results. Defaults to '<input_dir>/output.json'."
+    )
+    parser.add_argument(
+        "--n-posts",
+        type=int,
+        default=5,
+        help="Number of posts to include in the analysis (default: 5)."
+    )
+    parser.add_argument(
+        "--n-conversations",
+        type=int,
+        default=5,
+        help="Number of conversations to include in the analysis (default: 5)."
+    )
+    args = parser.parse_args()
+
+    # Step 2: Set up file paths
+    input_path = args.input
+    conversations_path = args.conversations
+    output_path = args.output or os.path.join(
+        os.path.dirname(input_path), "Personas.json"
+    )
+
+    # Validate input file
+    if not os.path.exists(input_path):
+        logger.error(f"Input file not found: {input_path}")
+        exit(1)
+    
+    # Step 3: Initialize PersonaAnalyzer
+    llm_client = api_key=os.getenv(LLMClient('OPENAI_API_KEY'))  # Replace with actual client initialization
+    analyzer = PersonaAnalyzer(llm_client)
+
+    # Step 4: Run analysis
+    try:
+        logger.info("Starting persona analysis...")
+        analyzer.analyze_persona_from_files(
+            posts_path=input_path,
+            conversations_path=conversations_path,
+            output_path=output_path,
+            n_posts=args.n_posts,
+            n_conversations=args.n_conversations
+        )
+        logger.info(f"Persona analysis completed. Results saved to {output_path}")
+    except Exception as e:
+        logger.error("Failed to analyze personas:")
+        logger.error(traceback.format_exc())
+        raise
+        exit(1)
+
+if __name__ == "__main__":
+    main()
