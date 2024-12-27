@@ -128,10 +128,48 @@ class ConversationEvaluationPipeline:
         }
     
     def _get_conversation_history(self, conversation_id: str, data: Dict) -> List[Dict]:
-        """Extract conversation history for a specific response."""
-        # Implement conversation history extraction logic
-        # This will depend on how conversations are stored in your data
-        return []
+        """
+        Extract conversation history for a specific conversation.
+        
+        Args:
+            conversation_id: ID of the conversation
+            data: Dictionary containing all conversations data
+            
+        Returns:
+            List of messages in chronological order
+        """
+        try:
+            # Get raw conversation if it exists in the input data
+            raw_conversation = data.get('conversation_data', {}).get(conversation_id, [])
+            
+            if not raw_conversation:
+                logger.warning(f"No conversation found for ID: {conversation_id}")
+                return []
+            
+            # Sort messages by timestamp to ensure chronological order
+            sorted_messages = sorted(
+                raw_conversation,
+                key=lambda x: x.get('created_at', ''),
+                reverse=False  # Oldest first
+            )
+            
+            # Format each message in the conversation
+            formatted_messages = []
+            for msg in sorted_messages:
+                formatted_messages.append({
+                    'user_id': msg.get('original_user_id'),
+                    'screen_name': msg.get('screen_name'),
+                    'text': msg.get('full_text'),
+                    'timestamp': msg.get('created_at'),
+                    'tweet_id': msg.get('tweet_id'),
+                    'reply_to_id': msg.get('reply_to_id')
+                })
+                
+            return formatted_messages
+            
+        except Exception as e:
+            logger.error(f"Error extracting conversation history: {e}")
+            return []
 
     def _calculate_aggregate_metrics(self, evaluations: List[Dict]) -> Dict:
         """Calculate aggregate statistics across all evaluations."""
