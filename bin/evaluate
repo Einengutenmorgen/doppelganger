@@ -50,33 +50,79 @@ def setup_args() -> argparse.Namespace:
     
     return parser.parse_args()
 
+def generate_report(results: dict) -> dict:
+    """Generate a structured report from evaluation results."""
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "total_posts_evaluated": results['metadata']['total_evaluated'],
+        "metrics": {
+            "rouge_scores": {},
+            "similarity_scores": {},
+            "llm_evaluation": {}
+        }
+    }
+    
+    agg = results.get('aggregate_metrics', {})
+    
+    # Add ROUGE scores
+    if 'rouge' in agg and 'rouge1' in agg['rouge']:
+        report["metrics"]["rouge_scores"] = {
+            "rouge1_f1": agg['rouge']['rouge1']['fmeasure']['mean']
+        }
+    
+    # Add similarity scores
+    if 'similarity_scores' in agg:
+        report["metrics"]["similarity_scores"] = {
+            "mean": agg['similarity_scores']['mean']
+        }
+    
+    # Add LLM evaluation scores
+    if 'llm_evaluation' in agg:
+        report["metrics"]["llm_evaluation"] = {
+            "authenticity": agg['llm_evaluation']['authenticity']['mean'],
+            "style_consistency": agg['llm_evaluation']['style_consistency']['mean']
+        }
+    
+    return report
+
+def save_report(report: dict, base_path: str):
+    """Save report to a JSON file."""
+    # Create reports directory if it doesn't exist
+    reports_dir = os.path.join(os.path.dirname(base_path), "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"evaluation_report_{timestamp}.json"
+    report_path = os.path.join(reports_dir, filename)
+    
+    # Save report
+    with open(report_path, 'w') as f:
+        json.dump(report, f, indent=2)
+    
+    return report_path
+
 def print_summary(results: dict):
     """Print summary of evaluation results."""
     print("\nEvaluation Summary:")
     print(f"Total posts evaluated: {results['metadata']['total_evaluated']}")
-    
     if results.get('aggregate_metrics'):
         agg = results['aggregate_metrics']
-        
         print("\nAverage Scores:")
         if 'rouge' in agg and 'rouge1' in agg['rouge']:
             rouge1 = agg['rouge']['rouge1']
             print(f"ROUGE-1 F1: {rouge1['fmeasure']['mean']:.3f}")
-            
         if 'similarity_scores' in agg:
             sim = agg['similarity_scores']
             print(f"Semantic Similarity: {sim['mean']:.3f}")
-                        
         if 'llm_evaluation' in agg:
             llm = agg['llm_evaluation']
             print(f"Authenticity: {llm['authenticity']['mean']:.1f}/10")
-            #print(f"Response Quality: {llm['response_quality']['mean']:.1f}/10")
             print(f"Style Consistency: {llm['style_consistency']['mean']:.1f}/10")
 
 def main():
     """Main execution function."""
     args = setup_args()
-    
     # Set logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level))
     
@@ -87,27 +133,30 @@ def main():
     if not os.getenv('OPENAI_API_KEY'):
         logger.error("OPENAI_API_KEY environment variable is required")
         sys.exit(1)
-        
+    
     try:
         # Load generated posts
         logger.info(f"Loading generated posts from {args.input}")
         with open(args.input, 'r') as f:
             data = json.load(f)
-            
+        
         # Initialize pipeline
-        pipeline =  EvaluationPipeline()
+        pipeline = EvaluationPipeline()
         
         # Run evaluation
         logger.info("Starting evaluation pipeline")
         results = pipeline.evaluate_batch(data)
         
+        # Save full results
         output_path = os.path.join(
             os.path.dirname(args.input), "eval_results.json"
         )
-        
-        
         pipeline.save_results(results, output_path)
-        logger.info(f"Evaluation completed. Results saved to {output_path}")
+        
+        # Generate and save report
+        report = generate_report(results)
+        report_path = save_report(report, args.input)
+        logger.info(f"Evaluation report saved to {report_path}")
         
         # Print summary
         print_summary(results)
