@@ -1,25 +1,18 @@
 """Text similarity analysis module using jina-embeddings-v3."""
-
 import os
 import logging
-from typing import Dict
+from typing import Dict, List
 from dataclasses import dataclass
 import numpy as np
-from transformers import AutoModel
+import torch  # Added PyTorch import
+from transformers import AutoModel, AutoTokenizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
+
 # Define model constants
-
-
 MODEL_NAME = "jinaai/jina-embeddings-v3"
 MODEL_DIR = os.path.join('/Users/mogen/Desktop/Research_Case/embedding_model/', MODEL_NAME)
-
-@dataclass
-class SimilarityScores:
-    """Container for similarity metrics."""
-    semantic_similarity: float
-    
 
 class SimilarityAnalyzer:
     """Analyzer for computing similarity metrics between texts using jina-embeddings."""
@@ -33,16 +26,20 @@ class SimilarityAnalyzer:
         """
         try:
             os.makedirs(MODEL_DIR, exist_ok=True)
-            
-            self.model = model = AutoModel.from_pretrained("jinaai/jina-embeddings-v3", trust_remote_code=True)
-
+            self.model = AutoModel.from_pretrained(
+                "jinaai/jina-embeddings-v3", 
+                trust_remote_code=True
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "jinaai/jina-embeddings-v3"
+            )
             self.max_length = max_length
             logger.info("Initialized jina-embeddings model successfully")
         except Exception as e:
             logger.error(f"Error initializing jina-embeddings model: {e}")
             raise
-    
-    def analyze_similarity(self, original: str, regenerated: str) -> SimilarityScores:
+
+    def analyze_similarity(self, original: str, regenerated: str) -> float:
         """
         Analyze various similarity aspects between texts.
         
@@ -51,21 +48,15 @@ class SimilarityAnalyzer:
             regenerated: Regenerated text
             
         Returns:
-            SimilarityScores object containing similarity metrics
+            float: Similarity score between 0 and 1
         """
         try:
             semantic_similarity = self._compute_semantic_similarity(original, regenerated)
-            
-            
-            return SimilarityScores(
-                semantic_similarity=semantic_similarity,
-                
-            )
-            
+            return semantic_similarity
         except Exception as e:
             logger.error(f"Error analyzing similarity: {e}")
-            return SimilarityScores(0.0, 0.0, 0.0)
-    
+            raise  # Better to raise the error than return 0.0
+
     def _compute_semantic_similarity(self, text1: str, text2: str) -> float:
         """
         Compute semantic similarity between two texts using jina embeddings.
@@ -78,17 +69,26 @@ class SimilarityAnalyzer:
             float: Semantic similarity score
         """
         try:
-            # Generate embeddings using text-matching task
-            embeddings = self.model.encode(
+            # Tokenize and encode texts
+            inputs = self.tokenizer(
                 [text1, text2],
-                task="text-matching",
-                max_length=self.max_length
+                max_length=self.max_length,
+                padding=True,
+                truncation=True,
+                return_tensors="pt"
             )
             
-            # Compute cosine similarity
-            similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
-            return float(similarity)
+            # Generate embeddings
+            with torch.no_grad():
+                embeddings = self.model(**inputs).last_hidden_state[:, 0, :]  # Using [CLS] token
             
+            # Compute cosine similarity
+            similarity: float = cosine_similarity(
+                embeddings[0].reshape(1, -1), 
+                embeddings[1].reshape(1, -1)
+            )[0][0]
+            
+            return float(similarity)
         except Exception as e:
             logger.error(f"Error computing semantic similarity: {e}")
-            return 0.0
+            raise

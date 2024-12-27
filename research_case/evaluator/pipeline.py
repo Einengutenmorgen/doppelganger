@@ -54,7 +54,7 @@ class EvaluationPipeline:
             
             return {
                 'rouge_scores': rouge_scores,
-                'similarity_scores': similarity_scores.__dict__,
+                'similarity_scores': similarity_scores,
                 'llm_evaluation': llm_evaluation,
                 'metadata': {
                     'original_id': original_post.get('tweet_id'),
@@ -107,7 +107,7 @@ class EvaluationPipeline:
         """Calculate aggregate statistics for all metrics."""
         try:
             # Filter out any failed evaluations that might have empty dictionaries
-            valid_evaluations = [e for e in evaluations if e and all(k in e for k in ["rouge_scores", "llm_evaluation"])]
+            valid_evaluations = [e for e in evaluations if e and all(k in e for k in ["rouge_scores", "llm_evaluation", "similarity_scores"])]
             
             if not valid_evaluations:
                 logger.warning("No valid evaluations to aggregate")
@@ -115,8 +115,9 @@ class EvaluationPipeline:
 
             return {
                 "rouge": self._aggregate_rouge_scores([e["rouge_scores"] for e in valid_evaluations]),
-                "llm_evaluation": self._aggregate_llm_scores([e["llm_evaluation"] for e in valid_evaluations])
-            }
+                "llm_evaluation": self._aggregate_llm_scores([e["llm_evaluation"] for e in valid_evaluations]),
+                'similarity_scores': {'mean': sum(e['similarity_scores'] for e in evaluations) / len(evaluations)}
+                }
         except Exception as e:
             logger.error(f"Error calculating aggregate metrics: {e}")
             return {}
@@ -171,25 +172,13 @@ class EvaluationPipeline:
         return aggregated
     
     @staticmethod
-    def _aggregate_similarity_scores(scores: List[Dict]) -> Dict:
-        """Aggregate similarity scores across multiple evaluations."""
+    def _aggregate_similarity_scores(scores: List[float]) -> Dict:
         if not scores:
             return {}
-                
+
         try:
-            return {
-                "authenticity": {
-                    "mean": sum(s["authenticity"]["score"] for s in scores) / len(scores),
-                    "std": 0.0
-                },
-                "style_consistency": {
-                    "mean": sum(s["style_consistency"]["score"] for s in scores) / len(scores),
-                    "std": 0.0
-                }
-            }
-        except KeyError as e:
-            logger.error(f"Missing key in similarity scores: {e}")
-            return {}
+            mean_similarity = sum(scores) / len(scores)
+            return {"mean": mean_similarity}
         except Exception as e:
             logger.error(f"Error aggregating similarity scores: {e}")
             return {}

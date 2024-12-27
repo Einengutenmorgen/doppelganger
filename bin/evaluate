@@ -63,11 +63,10 @@ def print_summary(results: dict):
             rouge1 = agg['rouge']['rouge1']
             print(f"ROUGE-1 F1: {rouge1['fmeasure']['mean']:.3f}")
             
-        if 'similarity' in agg:
-            sim = agg['similarity']
-            print(f"Semantic Similarity: {sim['semantic_similarity']['mean']:.3f}")
-            print(f"Content Preservation: {sim['content_preservation']['mean']:.3f}")
-            
+        if 'similarity_scores' in agg:
+            sim = agg['similarity_scores']
+            print(f"Semantic Similarity: {sim['mean']:.3f}")
+                        
         if 'llm_evaluation' in agg:
             llm = agg['llm_evaluation']
             print(f"Authenticity: {llm['authenticity']['mean']:.1f}/10")

@@ -47,7 +47,7 @@ class LLMClient:
                 max_tokens=max_tokens,
                 response_format={"type": "json_object"}
             )
-            logger.info(f"LLM Response: {response}")  # Log the raw response
+            logger.debug(f"LLM Response: {response}")  # Log the raw response
             return response.choices[0].message.content
         
         except TypeError as te:
