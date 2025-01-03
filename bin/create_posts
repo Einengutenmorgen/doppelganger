@@ -94,13 +94,14 @@ def main():
         "--posts",
         type=str,
         required=True,
+       defaults=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_users.json'),
         help="Path to the JSON file containing original posts for stimulus generation."
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        help="Path to save the generated posts. Defaults to '<input_dir>/generated_posts.json'."
+        help="Path to save the generated posts. Defaults to the persona dirctory '<input_dir>/generated_posts.json'."
     )
     parser.add_argument(
         "--posts-per-persona",

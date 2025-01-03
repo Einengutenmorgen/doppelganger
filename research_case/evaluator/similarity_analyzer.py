@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 # Define model constants
 MODEL_NAME = "jinaai/jina-embeddings-v3"
-MODEL_DIR = os.path.join('/Users/mogen/Desktop/Research_Case/embedding_model/', MODEL_NAME)
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'embedding_model', MODEL_NAME)
+
 
 class SimilarityAnalyzer:
     """Analyzer for computing similarity metrics between texts using jina-embeddings."""

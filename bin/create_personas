@@ -6,6 +6,7 @@ import sys
 import logging
 from dotenv import load_dotenv
 import traceback2 as traceback
+from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -30,6 +31,7 @@ def main():
         "--input",
         type=str,
         required=True,
+        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_users.json'),
         help="Path to the input JSON file containing user posts or conversations."
     )
     parser.add_argument(
@@ -42,7 +44,8 @@ def main():
         "--output",
         type=str,
         required=False,
-        help="Path to save the persona analysis results. Defaults to '<input_dir>/output.json'."
+        defaults=f'{os.path.join(os.path.dirname(os.path.dirname(__file__)), 'results/CURRENTDAYANDTIME/Personas.json')}'.",
+        help="Path to save the persona analysis results. Defaults to '/Users/mogen/Desktop/Research_Case/results/CURRENTDAYANDTIME/Personas.json'."
     )
     parser.add_argument(
         "--n-posts",
@@ -62,8 +65,13 @@ def main():
     input_path = args.input
     conversations_path = args.conversations
     output_path = args.output or os.path.join(
-        os.path.dirname(input_path), "Personas.json"
+        "/Users/mogen/Desktop/Research_Case/results",
+        datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "personas.json"
     )
+
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # Validate input file
     if not os.path.exists(input_path):

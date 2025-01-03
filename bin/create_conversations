@@ -96,13 +96,14 @@ def main():
         "--conversations",
         type=str,
         required=True,
+        defaults= defaults=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_conversations.json'),
         help="Path to the JSON file containing conversation threads."
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        help="Path to save the generated responses. Defaults to '<input_dir>/generated_conversations.json'."
+        help="Path to save the generated responses. Defaults to the persona directory'<input_dir>/generated_conversations.json'."
     )
     parser.add_argument(
         "--min-messages",
