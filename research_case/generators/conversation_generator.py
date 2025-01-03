@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from research_case.analyzers.llm_client import LLMClient
+from research_case.analyzers.persona_prompt import PERSONA_FIELDS
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,11 @@ class ConversationPrompt:
     conversation_history: List[Dict]
     parent_message: str
     context: Optional[str] = None
+    
+def format_persona_section(fields: List[str]) -> str:
+    """Generate the persona characteristics section of the prompt."""
+    return "\n".join(f"{field.replace('_', ' ').title()}: {{{field}}}" 
+                    for field in fields)
 
 class ConversationGenerator:
     """Generator for creating synthetic conversation responses based on personas"""
@@ -32,14 +38,13 @@ class ConversationGenerator:
         Returns:
             Generated response text
         """
+        for field in PERSONA_FIELDS:
+            if field not in prompt.persona:
+                raise KeyError(f"Missing required persona field: {field}")
+
         template = """You are responding in a conversation thread as a social media user with these characteristics:
 
-Writing Style: {writing_style}
-Tone: {tone}
-Topics of Interest: {topics}
-Personality Traits: {personality_traits}
-Typical Engagement Patterns: {engagement_patterns}
-Language Preferences: {language_preferences}
+{format_persona_section(PERSONA_FIELDS)}
 
 Conversation Context:
 Previous message you're responding to: {parent_message}
@@ -63,12 +68,7 @@ Return response in JSON format:
 """
 
         prompt_text = template.format(
-            writing_style=prompt.persona["writing_style"],
-            tone=prompt.persona["tone"], 
-            topics=prompt.persona["topics"],
-            personality_traits=prompt.persona["personality_traits"],
-            engagement_patterns=prompt.persona["engagement_patterns"],
-            language_preferences=prompt.persona["language_preferences"],
+            **{field: prompt.persona[field] for field in PERSONA_FIELDS},
             parent_message=prompt.parent_message,
             history=self._format_history(prompt.conversation_history)
         )

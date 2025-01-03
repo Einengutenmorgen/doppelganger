@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Executable script for running the preprocessing pipeline."""
+"""Optimized executable script for running the preprocessing pipeline."""
 
 import os
 import sys
+import time
+import logging
+import argparse
+import psutil
 from pathlib import Path
+from datetime import datetime
 
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent)
@@ -11,27 +16,131 @@ sys.path.append(project_root)
 
 from research_case.processors.preprocess import DataPreprocessor
 
+def setup_logging(log_dir: str) -> None:
+    """Setup logging with both file and console output."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Setup formatters and handlers
+    file_handler = logging.FileHandler(
+        os.path.join(log_dir, f'preprocessing_{timestamp}.log')
+    )
+    console_handler = logging.StreamHandler()
+    
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    # Setup root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments with validation."""
+    parser = argparse.ArgumentParser(
+        description="Process large CSV files of social media data."
+    )
+    parser.add_argument(
+        '--input',
+        type=str,
+        required=True,
+        help='Path to input CSV file'
+    )
+    parser.add_argument(
+        '--chunk-size',
+        type=int,
+        default=100000,
+        help='Number of rows to process per chunk (default: 100000)'
+    )
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='Run in test mode with sample data'
+    )
+    parser.add_argument(
+        '--log-dir',
+        type=str,
+        default=os.path.join(project_root, 'logs'),
+        help='Directory for log files'
+    )
+    
+    args = parser.parse_args()
+    
+    # Validate input file
+    if not os.path.exists(args.input):
+        parser.error(f"Input file not found: {args.input}")
+    
+    # Validate chunk size
+    if args.chunk_size <= 0:
+        parser.error("Chunk size must be positive")
+    
+    return args
+
+def monitor_resources() -> dict:
+    """Monitor system resources."""
+    process = psutil.Process()
+    
+    return {
+        'memory_percent': process.memory_percent(),
+        'memory_mb': process.memory_info().rss / 1024 / 1024,
+        'cpu_percent': process.cpu_percent(),
+        'num_threads': process.num_threads()
+    }
+
 def main():
-    """Main execution function for the preprocessing pipeline."""
+    """Main execution function with resource monitoring."""
+    start_time = time.time()
+    
+    # Parse arguments
+    args = parse_args()
+    
+    # Setup logging
+    setup_logging(args.log_dir)
+    logger = logging.getLogger(__name__)
+    
     try:
-        # Get input file path
-        input_file = os.path.join(project_root, "data", "df_test_10k.csv")
+        # Log initial resources
+        initial_resources = monitor_resources()
+        logger.info("Initial resource usage:")
+        logger.info(f"Memory: {initial_resources['memory_mb']:.2f} MB ({initial_resources['memory_percent']:.1f}%)")
+        logger.info(f"CPU: {initial_resources['cpu_percent']:.1f}%")
+        logger.info(f"Threads: {initial_resources['num_threads']}")
         
-        # Initialize preprocessor
-        preprocessor = DataPreprocessor(input_file)
+        # Initialize and run preprocessor
+        preprocessor = DataPreprocessor(
+            input_file=args.input,
+            chunk_size=args.chunk_size
+        )
         
-        # Run processing
-        posts_file, replies_file, users_file, conversations_file = preprocessor.process()
+        logger.info("Starting preprocessing pipeline...")
+        posts_file, replies_file, users_file, conversations_file = preprocessor.process(
+            test=args.test
+        )
         
-        print("\nProcessing completed successfully!")
-        print(f"Output files:")
-        print(f"Posts: {posts_file}")
-        print(f"Replies: {replies_file}")
-        print(f"Users: {users_file}")
-        print(f"Conversations: {conversations_file}")
+        # Log final resources
+        final_resources = monitor_resources()
+        logger.info("\nFinal resource usage:")
+        logger.info(f"Memory: {final_resources['memory_mb']:.2f} MB ({final_resources['memory_percent']:.1f}%)")
+        logger.info(f"CPU: {final_resources['cpu_percent']:.1f}%")
+        logger.info(f"Threads: {final_resources['num_threads']}")
+        
+        # Log output files
+        logger.info("\nOutput files:")
+        logger.info(f"Posts: {posts_file}")
+        logger.info(f"Replies: {replies_file}")
+        logger.info(f"Users: {users_file}")
+        logger.info(f"Conversations: {conversations_file}")
+        
+        # Log execution time
+        execution_time = time.time() - start_time
+        logger.info(f"\nTotal execution time: {execution_time:.2f} seconds")
         
     except Exception as e:
-        print(f"Error in preprocessing pipeline: {e}")
+        logger.error("Error in preprocessing pipeline:", exc_info=True)
         sys.exit(1)
 
 if __name__ == "__main__":

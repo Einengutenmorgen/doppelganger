@@ -1,44 +1,35 @@
-"""Data preprocessing module."""
+"""Optimized data preprocessing module for large CSV files."""
 
 import os
 import re
 import logging
-from typing import Tuple, Dict
-from collections import defaultdict  
-
+from typing import Tuple, Dict, Generator
+from collections import defaultdict
 from datetime import datetime
-
 import pandas as pd
 import emoji
+from tqdm import tqdm
+import psutil
 
-from research_case.processors.conversation_extraction import ConversationExtractor
-
-# Set up logging
 logger = logging.getLogger(__name__)
 
-
 class DataPreprocessor:
-    def __init__(self, input_file: str):
-        
-        """
-        Initialize the preprocessor with input file path.
-        
-        Args:
-            input_file: Path to the input CSV file
-        """
+    def __init__(self, input_file: str, chunk_size: int = 100000):
+        """Initialize preprocessor with chunking support."""
         self.input_file = input_file
-        self.df = None
-        self.posts_df = None
-        self.replies_df = None
-        self.user_groups = None
+        self.chunk_size = chunk_size
+        self.output_dir = None
+        self.total_rows = None
+        self._count_rows()
         
+    def _count_rows(self) -> None:
+        """Count total rows in CSV for progress tracking."""
+        logger.info("Counting total rows...")
+        self.total_rows = sum(1 for _ in open(self.input_file)) - 1  # Subtract header
+        logger.info(f"Total rows to process: {self.total_rows:,}")
+
     def _setup_output_directory(self, test: bool = False) -> None:
-        """
-        Set up the output directory based on whether this is a test run.
-        
-        Args:
-            test: Boolean indicating if this is a test run
-        """
+        """Set up output directory with timestamp."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_dir = "Tests" if test else "Results"
         dir_prefix = "test_data" if test else "processed_data"
@@ -46,182 +37,134 @@ class DataPreprocessor:
         os.makedirs(self.output_dir, exist_ok=True)
         logger.info(f"Created output directory: {self.output_dir}")
         
-    def load_data(self) -> None:
-        """Load the input CSV file."""
-        logger.info(f"Loading data from {self.input_file}")
-        try:
-            self.df = pd.read_csv(self.input_file)
-            logger.info(f"Loaded {len(self.df)} rows")
-        except Exception as e:
-            logger.error(f"Error loading data: {e}")
-            raise
+    def _process_csv_chunks(self) -> Generator[pd.DataFrame, None, None]:
+        """Process CSV in chunks to manage memory."""
+        with tqdm(total=self.total_rows, desc="Processing CSV") as pbar:
+            for chunk in pd.read_csv(self.input_file, chunksize=self.chunk_size):
+                pbar.update(len(chunk))
+                yield chunk
+                
+    def split_posts_replies(self) -> Tuple[str, str]:
+        """Split data into posts and replies files using chunks."""
+        posts_file = os.path.join(self.output_dir, "intermediate_posts.csv")
+        replies_file = os.path.join(self.output_dir, "intermediate_replies.csv")
+        
+        header = True  # Write header only for first chunk
+        for chunk in self._process_csv_chunks():
+            # Split chunk
+            is_reply = (chunk['reply_to_id'].notna()) | (chunk['reply_to_user'].notna())
+            posts = chunk[~is_reply]
+            replies = chunk[is_reply]
             
-    def split_posts_replies(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        
-        """
-        Split data into posts and replies based on reply_to_id and reply_to_user.
-        Also saves the split files for potential use by ConversationExtractor.
-        
-        Returns:
-            Tuple of (posts_df, replies_df)
-        """
-        if self.df is None:
-            self.load_data()
+            # Append to files
+            posts.to_csv(posts_file, mode='a', header=header, index=False)
+            replies.to_csv(replies_file, mode='a', header=header, index=False)
+            header = False  # Don't write header for subsequent chunks
             
-        # Identify replies (posts with reply_to_id or reply_to_user)
-        is_reply = (self.df['reply_to_id'].notna()) | (self.df['reply_to_user'].notna())
-        
-        # Split into posts and replies
-        self.posts_df = self.df[~is_reply].copy()
-        self.replies_df = self.df[is_reply].copy()
-        
-        # Save split files if output directory exists
-        if hasattr(self, 'output_dir'):
-            posts_file = os.path.join(self.output_dir, "intermediate_posts.csv")
-            replies_file = os.path.join(self.output_dir, "intermediate_replies.csv")
-            
-            self.posts_df.to_csv(posts_file, index=False)
-            self.replies_df.to_csv(replies_file, index=False)
-            
-            logger.info(f"Saved intermediate split files to {self.output_dir}")
-        
-        logger.info(f"Split data into {len(self.posts_df)} posts and {len(self.replies_df)} replies")
-        return self.posts_df, self.replies_df
+        return posts_file, replies_file
     
-    def filter_tweets(self, df, min_length=10):  # You can adjust min_length as needed
-        # Create a copy to avoid modifying the original DataFrame
-        filtered_df = df.copy()
-        
+    def filter_tweets(self, input_file: str, output_file: str, min_length: int = 10) -> None:
+        """Filter tweets from input file to output file in chunks."""
         def is_valid_tweet(text):
             if not isinstance(text, str):
                 return False
-                
-            # Remove URLs from text for length checking
+            
+            # Remove URLs
             url_pattern = r'https?://\S+|www\.\S+'
             text_without_urls = re.sub(url_pattern, '', text).strip()
-        
-            # Check if text is only URLs
-            if not text_without_urls:
+            
+            if not text_without_urls or len(text_without_urls) < min_length:
                 return False
-                
-            # Check minimum length after removing URLs
-            if len(text_without_urls) < min_length:
-                return False
-                
-            # Check if text contains only emojis
+            
+            # Check for emoji-only
             text_without_emojis = ''.join(c for c in text_without_urls if c not in emoji.EMOJI_DATA)
             if not text_without_emojis.strip():
                 return False
-                
-            # Check if text contains only @mentions
+            
+            # Check for mentions-only
             mentions_pattern = r'^(@\S+\s*)+$'
             if re.match(mentions_pattern, text_without_urls.strip()):
                 return False
-                
+            
             return True
-    
-        # Apply the filtering
-        filtered_df = filtered_df[filtered_df['full_text'].apply(is_valid_tweet)]
+
+        header = True
+        for chunk in pd.read_csv(input_file, chunksize=self.chunk_size):
+            filtered_chunk = chunk[chunk['full_text'].apply(is_valid_tweet)]
+            filtered_chunk.to_csv(output_file, mode='a', header=header, index=False)
+            header = False
+            
+    def group_users_by_id(self, posts_file: str) -> Dict:
+        """Group posts by user ID efficiently."""
+        user_groups = defaultdict(list)
         
-        return filtered_df
-    
-        
-    def group_users_by_id(self) -> Dict:
-        """Group posts by user ID with error handling and memory efficiency."""
-        logger.info("Grouping posts by user ID")
-        
-        try:
-            # Ensure the correct column exists
-            user_id_col = 'original_user_id'
-            if user_id_col not in self.posts_df.columns:
-                raise KeyError(f"Required column '{user_id_col}' not found in DataFrame")
-                
-            # Remove any rows with null user IDs
-            valid_posts = self.posts_df[self.posts_df[user_id_col].notna()].copy()
-            
-            # Ensure consistent ID type (convert to string)
-            valid_posts[user_id_col] = valid_posts[user_id_col].astype(str)
-            
-            # Select only necessary columns for grouping to save memory
-            needed_columns = ['tweet_id', 'full_text', 'created_at', user_id_col]
-            subset_df = valid_posts[needed_columns]
-            
-            # Group by user ID more efficiently
-            self.user_groups = subset_df.groupby(user_id_col).apply(
-                lambda x: x.drop(columns=[user_id_col]).to_dict('records')
-            ).to_dict()
-            
-            logger.info(f"Grouped posts for {len(self.user_groups)} unique users")
-            logger.debug(f"First user group sample: {next(iter(self.user_groups.values()))[:1]}")
-            
-            return self.user_groups
-        
-        except Exception as e:
-            logger.error(f"Error in group_users_by_id: {str(e)}")
-            raise
+        for chunk in pd.read_csv(posts_file, chunksize=self.chunk_size):
+            for _, row in chunk.iterrows():
+                if pd.notna(row['original_user_id']):
+                    user_groups[str(row['original_user_id'])].append({
+                        'tweet_id': row['tweet_id'],
+                        'full_text': row['full_text'],
+                        'created_at': row['created_at']
+                    })
+                    
+        return dict(user_groups)
     
     def process(self, test: bool = False) -> Tuple[str, str, str, str]:
-        """
-        Process the data: load, split, filter, group, and save.
-        Integrates with ConversationExtractor for conversation processing.
-        
-        Args:
-            test: Boolean indicating if this is a test run
-            
-        Returns:
-            Tuple of (posts_file_path, replies_file_path, users_file_path, conversations_file_path)
-        """
         try:
             self._setup_output_directory(test)
             
-            # Split and filter data
-            self.split_posts_replies()
+            # Track initial memory
+            initial_memory = psutil.Process().memory_info().rss / 1024 / 1024
+            logger.info(f"Initial memory usage: {initial_memory:.2f} MB")
             
+            # Split data
+            logger.info("Splitting posts and replies...")
+            posts_file, replies_file = self.split_posts_replies()
+            
+            # Filter posts
             logger.info("Filtering posts...")
-            self.posts_df = self.filter_tweets(self.posts_df)
-            logger.info(f"Retained {len(self.posts_df)} valid posts after filtering")
-            
-            # No Filtering of the replies to keep meaning 
-            #logger.info("Filtering replies...")
-            #self.replies_df = self.filter_tweets(self.replies_df)
-            #logger.info(f"Retained {len(self.replies_df)} valid replies after filtering")
+            filtered_posts = os.path.join(self.output_dir, "filtered_posts.csv")
+            self.filter_tweets(posts_file, filtered_posts)
             
             # Group users
-            self.group_users_by_id()
+            logger.info("Grouping users...")
+            user_groups = self.group_users_by_id(filtered_posts)
             
-            # Initialize conversation extractor with our preprocessed data
-            conversation_extractor = ConversationExtractor(
-                replies_path=os.path.join(self.output_dir, "intermediate_replies.csv"),
-                posts_path=os.path.join(self.output_dir, "intermediate_posts.csv")
-            )
-            
-            # Extract conversations
-            conversations = conversation_extractor.extract_conversations()
-            
-            # Generate filenames
+            # Generate output files
             file_prefix = "test" if test else "processed"
-            posts_file = os.path.join(self.output_dir, f"{file_prefix}_posts.csv")
-            replies_file = os.path.join(self.output_dir, f"{file_prefix}_replies.csv")
+            final_posts = os.path.join(self.output_dir, f"{file_prefix}_posts.csv")
+            final_replies = os.path.join(self.output_dir, f"{file_prefix}_replies.csv")
             users_file = os.path.join(self.output_dir, f"{file_prefix}_users.json")
             conversations_file = os.path.join(self.output_dir, f"{file_prefix}_conversations.json")
             
-            # Save outputs
-            self.posts_df.to_csv(posts_file, index=False)
-            self.replies_df.to_csv(replies_file, index=False)
-            pd.Series(self.user_groups).to_json(users_file)
+            # Move/rename files
+            os.rename(filtered_posts, final_posts)
+            os.rename(replies_file, final_replies)
+            
+            # Save user groups
+            pd.Series(user_groups).to_json(users_file)
+            
+            # Extract conversations
+            db_path = os.path.join(self.output_dir, "conversations.db")
+            from research_case.processors.conversation_extraction import ConversationExtractor
+            conversation_extractor = ConversationExtractor(
+                replies_file=final_replies,
+                posts_file=final_posts,
+                db_path=db_path
+            )
+            conversations = conversation_extractor.extract_conversations()
             pd.Series(conversations).to_json(conversations_file)
             
-            # Get conversation statistics
-            conv_stats = conversation_extractor.get_conversation_stats()
-            logger.info(f"Conversation Statistics: {conv_stats}")
+            # Clean up temporary database
+            if os.path.exists(db_path):
+                os.remove(db_path)
             
-            logger.info(f"Saved all processed files to {self.output_dir}")
+            # Final memory usage
+            final_memory = psutil.Process().memory_info().rss / 1024 / 1024
+            logger.info(f"Final memory usage: {final_memory:.2f} MB")
+            logger.info(f"Memory increase: {final_memory - initial_memory:.2f} MB")
             
-            # Clean up intermediate files
-            os.remove(os.path.join(self.output_dir, "intermediate_posts.csv"))
-            os.remove(os.path.join(self.output_dir, "intermediate_replies.csv"))
-            
-            return posts_file, replies_file, users_file, conversations_file
+            return final_posts, final_replies, users_file, conversations_file
             
         except Exception as e:
             logger.error(f"Error processing data: {e}")

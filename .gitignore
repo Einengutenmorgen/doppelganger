@@ -5,3 +5,6 @@ data
 projectname*
 test
 results
+.logs/
+.notebooks/
+

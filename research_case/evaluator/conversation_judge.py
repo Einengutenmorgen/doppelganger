@@ -88,11 +88,6 @@ Previous messages in thread:
 Parent message being replied to:
 "{parent_message}"
 
-PERSONA CHARACTERISTICS:
-Writing Style: {persona.get('writing_style', '')}
-Tone: {persona.get('tone', '')}
-Topics: {persona.get('topics', '')}
-
 RESPONSES TO EVALUATE:
 Original Response: "{original_response}"
 Generated Response: "{generated_response}"

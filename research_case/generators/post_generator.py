@@ -14,6 +14,12 @@ class GenerationPrompt:
     stimulus: str
     context: Optional[str] = None
 
+def format_persona_section(fields: List[str]) -> str:
+    """Generate the persona characteristics section of the prompt."""
+    return "\n".join(f"{field.replace('_', ' ').title()}: {{{field}}}" 
+                    for field in fields)
+
+
 class PostGenerator:
     """Generator for creating synthetic social media posts based on personas"""
     
@@ -30,14 +36,13 @@ class PostGenerator:
         Returns:
             Generated post text
         """
+        for field in PERSONA_FIELDS:
+            if field not in prompt.persona:
+                raise KeyError(f"Missing required persona field: {field}")
+
         template = """You are a social media user with the following characteristics:
 
-Writing Style: {writing_style}
-Tone: {tone}
-Topics of Interest: {topics}
-Personality Traits: {personality_traits}
-Typical Engagement Patterns: {engagement_patterns}
-Language Preferences: {language_preferences}
+{format_persona_section(PERSONA_FIELDS)}
 
 Context: You are writing a social media post in response to the following stimulus:
 {stimulus}
@@ -57,12 +62,7 @@ JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤
 """
 
         prompt_text = template.format(
-            writing_style=prompt.persona["writing_style"],
-            tone=prompt.persona["tone"],
-            topics=prompt.persona["topics"],
-            personality_traits=prompt.persona["personality_traits"],
-            engagement_patterns=prompt.persona["engagement_patterns"],
-            language_preferences=prompt.persona["language_preferences"],
+            **{field: prompt.persona[field] for field in PERSONA_FIELDS},
             stimulus=prompt.stimulus
         )
 
