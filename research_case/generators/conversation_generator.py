@@ -15,11 +15,6 @@ class ConversationPrompt:
     conversation_history: List[Dict]
     parent_message: str
     context: Optional[str] = None
-    
-def format_persona_section(fields: List[str]) -> str:
-    """Generate the persona characteristics section of the prompt."""
-    return "\n".join(f"{field.replace('_', ' ').title()}: {{{field}}}" 
-                    for field in fields)
 
 class ConversationGenerator:
     """Generator for creating synthetic conversation responses based on personas"""
@@ -27,6 +22,11 @@ class ConversationGenerator:
     def __init__(self, llm_client: LLMClient):
         """Initialize with LLM client"""
         self.llm_client = llm_client
+
+    def _format_persona_section(self, persona: Dict[str, str]) -> str:
+        """Generate the persona characteristics section of the prompt."""
+        return "\n".join(f"{field.replace('_', ' ').title()}: {persona[field]}" 
+                        for field in PERSONA_FIELDS)
 
     def generate_response(self, prompt: ConversationPrompt) -> str:
         """
@@ -44,7 +44,7 @@ class ConversationGenerator:
 
         template = """You are responding in a conversation thread as a social media user with these characteristics:
 
-{format_persona_section(PERSONA_FIELDS)}
+{persona_section}
 
 Conversation Context:
 Previous message you're responding to: {parent_message}
@@ -68,7 +68,7 @@ Return response in JSON format:
 """
 
         prompt_text = template.format(
-            **{field: prompt.persona[field] for field in PERSONA_FIELDS},
+            persona_section=self._format_persona_section(prompt.persona),
             parent_message=prompt.parent_message,
             history=self._format_history(prompt.conversation_history)
         )

@@ -1,9 +1,10 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import json
 import logging
 from dataclasses import dataclass
 
 from research_case.analyzers.llm_client import LLMClient
+from research_case.analyzers.persona_prompt import PERSONA_FIELDS, PERSONA_ANALYSIS_PROMPT, EXAMPLE_PERSONA
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,17 @@ class PostGenerator:
     
     def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
-
+    
+    def _format_persona_section(self, persona: Dict[str, str]) -> str:
+        """Format persona characteristics based on PERSONA_FIELDS."""
+        sections = []
+        for field in PERSONA_FIELDS:
+            if field not in persona:
+                raise KeyError(f"Missing required persona field: {field}")
+            formatted_field = field.replace('_', ' ').title()
+            sections.append(f"{formatted_field}: {persona[field]}")
+        return "\n".join(sections)
+    
     def generate_post(self, prompt: GenerationPrompt) -> str:
         """
         Generate a social media post based on a persona and stimulus.
@@ -42,7 +53,7 @@ class PostGenerator:
 
         template = """You are a social media user with the following characteristics:
 
-{format_persona_section(PERSONA_FIELDS)}
+{persona_characteristics}
 
 Context: You are writing a social media post in response to the following stimulus:
 {stimulus}
@@ -62,7 +73,7 @@ JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤
 """
 
         prompt_text = template.format(
-            **{field: prompt.persona[field] for field in PERSONA_FIELDS},
+            persona_characteristics=self._format_persona_section(prompt.persona),
             stimulus=prompt.stimulus
         )
 

@@ -149,15 +149,15 @@ class DataPreprocessor:
             from research_case.processors.conversation_extraction import ConversationExtractor
             conversation_extractor = ConversationExtractor(
                 replies_file=final_replies,
-                posts_file=final_posts,
-                db_path=db_path
+                posts_file=final_posts
+                #db_path=db_path
             )
             conversations = conversation_extractor.extract_conversations()
             pd.Series(conversations).to_json(conversations_file)
             
             # Clean up temporary database
-            if os.path.exists(db_path):
-                os.remove(db_path)
+            #if os.path.exists(db_path):
+            #    os.remove(db_path)
             
             # Final memory usage
             final_memory = psutil.Process().memory_info().rss / 1024 / 1024

@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
+from itertools import islice
 from dotenv import load_dotenv
 import traceback2 as traceback
 
@@ -17,6 +18,7 @@ sys.path.append(project_root)
 
 from research_case.analyzers.llm_client import LLMClient
 from research_case.generators.post_generator import PostGenerator, StimulusGenerator, GenerationPrompt
+
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -94,7 +96,7 @@ def main():
         "--posts",
         type=str,
         required=True,
-       defaults=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_users.json'),
+        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_users.json'),
         help="Path to the JSON file containing original posts for stimulus generation."
     )
     parser.add_argument(

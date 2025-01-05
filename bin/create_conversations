@@ -5,11 +5,13 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, UTC 
 from pathlib import Path
 from typing import Dict, List
 from dotenv import load_dotenv
 import traceback2 as traceback
+from itertools import islice
+
 
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent)
@@ -27,27 +29,34 @@ def generate_responses_for_conversation(
     conversation_messages: List[Dict],
     persona: Dict,
     generator: ConversationGenerator,
+    max_generations: int = 5
 ) -> List[Dict]:
     """
-    Generate responses for a conversation thread.
+    Generate responses for a conversation thread up to max_generations.
     
     Args:
         conversation_id: Unique conversation identifier
         conversation_messages: List of messages in conversation
         persona: User's persona data
         generator: ConversationGenerator instance
+        max_generations: Maximum number of responses to generate per conversation
         
     Returns:
         List of generated response records
     """
     generated_records = []
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     
     # Sort messages by timestamp to maintain conversation flow
     messages = sorted(conversation_messages, key=lambda x: x.get('created_at', ''))
     
-    # Generate response for each message except the last one
+    # Generate response for each message except the last one, up to max_generations
+    generations_count = 0
     for i in range(len(messages) - 1):
+        if generations_count >= max_generations:
+            logger.info(f"Reached maximum generations ({max_generations}) for conversation {conversation_id}")
+            break
+            
         current_msg = messages[i]
         next_msg = messages[i + 1]
         
@@ -78,6 +87,7 @@ def generate_responses_for_conversation(
             }
             
             generated_records.append(record)
+            generations_count += 1
     
     return generated_records
 
@@ -96,20 +106,33 @@ def main():
         "--conversations",
         type=str,
         required=True,
-        defaults= defaults=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_conversations.json'),
+        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                           'data/processed_data/processed_conversations.json'),
         help="Path to the JSON file containing conversation threads."
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        help="Path to save the generated responses. Defaults to the persona directory'<input_dir>/generated_conversations.json'."
+        help="Path to save the generated responses. Defaults to '<input_dir>/generated_conversations.json'."
     )
     parser.add_argument(
         "--min-messages",
         type=int,
-        default=2,
-        help="Minimum number of messages in conversation to process (default: 2)."
+        default=5,
+        help="Minimum number of messages in conversation to process (default: 5)."
+    )
+    parser.add_argument(
+        "--replies-generations-per-conversation",
+        type=int,
+        default=1,
+        help="Maximum number of responses to generate per conversation (default: 1)."
+    )
+    parser.add_argument(
+        "--for-n-conversations",
+        type=int,
+        default=50,
+        help="Maximum number of conversations that should be used (default: 50."
     )
     args = parser.parse_args()
 
@@ -145,7 +168,7 @@ def main():
         all_generated_records = []
 
         # Generate responses for each conversation
-        for conv_id, messages in conversations.items():
+        for conv_id, messages in islice(conversations.items(), args.for_n_conversations):
             if len(messages) < args.min_messages:
                 logger.debug(f"Skipping conversation {conv_id} - too few messages")
                 continue
@@ -157,7 +180,8 @@ def main():
                 conversation_id=conv_id,
                 conversation_messages=messages,
                 persona=personas,
-                generator=conversation_generator
+                generator=conversation_generator,
+                max_generations=args.replies_generations_per_conversation
             )
             
             all_generated_records.extend(conv_records)
@@ -165,10 +189,11 @@ def main():
         # Add generation run metadata
         output_data = {
             "metadata": {
-                "generation_timestamp": datetime.utcnow().isoformat(),
+                "generation_timestamp": datetime.now(UTC).isoformat(),
                 "conversations_processed": len(conversations),
                 "total_responses_generated": len(all_generated_records),
-                "min_messages": args.min_messages
+                "min_messages": args.min_messages,
+                "max_generations": args.replies_generations_per_conversation
             },
             "generated_responses": all_generated_records
         }

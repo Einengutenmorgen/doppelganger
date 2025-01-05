@@ -2,24 +2,22 @@
 
 import sqlite3
 import logging
-from typing import Dict, List, Set
+from typing import Dict, List
 from collections import defaultdict
 import pandas as pd
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-
 class ConversationExtractor:
-    def __init__(self, replies_file: str, posts_file: str, db_path: str = ":memory:", 
+    def __init__(self, replies_file: str, posts_file: str, 
                  min_conversation_size: int = 2, chunk_size: int = 50000):
         self.replies_file = replies_file
         self.posts_file = posts_file
-        self.db_path = db_path
         self.min_conversation_size = min_conversation_size
         self.chunk_size = chunk_size
         self.conversation_stats = self._init_stats()
-        
+    
     def _init_stats(self) -> Dict:
         return {
             'total_conversations': 0,
@@ -29,122 +27,167 @@ class ConversationExtractor:
             'min_conversation_length': float('inf'),
             'avg_conversation_length': 0
         }
-        
-    def _setup_temp_tables(self):
-        """Create temporary tables for conversation processing with REPLACE strategy"""
-        conn = sqlite3.connect(self.db_path)
+
+    def _setup_database(self):
+        """Initialize in-memory SQLite database with proper schema"""
+        conn = sqlite3.connect(':memory:')
         c = conn.cursor()
         
-        # Drop existing table if it exists
-        c.execute('DROP TABLE IF EXISTS conversation_map')
-        
-        # Create table with UNIQUE constraint on tweet_id
+        # Create table with proper type enforcement
         c.execute('''CREATE TABLE conversation_map
-                    (tweet_id TEXT PRIMARY KEY,
-                     conversation_id TEXT,
+                    (tweet_id TEXT PRIMARY KEY, 
                      reply_to_id TEXT,
-                     processed INTEGER DEFAULT 0)''')
-                     
-        c.execute('CREATE INDEX idx_conv_id ON conversation_map(conversation_id)')
-        c.execute('CREATE INDEX idx_reply_to ON conversation_map(reply_to_id)')
+                     created_at TEXT,
+                     full_text TEXT,
+                     original_user_id TEXT,
+                     CONSTRAINT tweet_id_not_null CHECK (tweet_id IS NOT NULL))''')
         
-        conn.commit()
-        conn.close()
+        # Create index for better query performance
+        c.execute('CREATE INDEX idx_reply_to ON conversation_map(reply_to_id)')
+        return conn
 
-    def _find_post(self, post_id: str) -> dict:
-        """Find original post efficiently using chunked reading"""
-        if not post_id:
-            logger.warning("Empty post_id provided.")
-            return None
-
+    def _process_chunk(self, chunk: pd.DataFrame, conn: sqlite3.Connection):
+        """Process a single chunk of data"""
         try:
-            # Ensure post_id is treated as a string consistently
-            post_id = str(int(float(post_id)))
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid post_id format: {post_id}")
-            return None
-
-        try:
-            for chunk in pd.read_csv(self.posts_file, chunksize=self.chunk_size):
-                # Convert tweet_id to string for comparison
-                chunk['tweet_id'] = chunk['tweet_id'].astype(str)
-                matching_post = chunk[chunk['tweet_id'] == post_id]
-                if not matching_post.empty:
-                    return matching_post.iloc[0].to_dict()
+            # Convert float64 to string properly
+            chunk['tweet_id'] = chunk['tweet_id'].apply(lambda x: f'{x:.0f}' if pd.notna(x) else None)
+            chunk['reply_to_id'] = chunk['reply_to_id'].apply(lambda x: f'{x:.0f}' if pd.notna(x) else None)
+            
+            # Filter out nulls
+            valid_data = chunk.dropna(subset=['tweet_id'])
+            
+            # Insert with IGNORE for the rare duplicates
+            records = valid_data[['tweet_id', 'reply_to_id', 'created_at', 'full_text', 'original_user_id']].values.tolist()
+            conn.executemany(
+                'INSERT OR IGNORE INTO conversation_map VALUES (?, ?, ?, ?, ?)',
+                records
+            )
+            conn.commit()
+            
         except Exception as e:
-            logger.error(f"Error processing post_id {post_id}: {e}")
-        return None
-
-    # Other methods remain unchanged but incorporate robust error handling.
+            logger.error(f"Error processing chunk: {e}")
+            conn.rollback()
+            raise
 
     def extract_conversations(self) -> Dict[str, List[dict]]:
         """Extract conversations using SQLite for efficient processing"""
-        self._setup_temp_tables()
-        conn = sqlite3.connect(self.db_path)
+        conn = self._setup_database()
         
-        # First pass: Build conversation tree
-        logger.info("Building conversation tree...")
-        total_chunks = sum(1 for _ in pd.read_csv(self.replies_file, chunksize=self.chunk_size))
-        
-        with tqdm(total=total_chunks, desc="Processing reply chunks") as pbar:
-            for chunk in pd.read_csv(self.replies_file, chunksize=self.chunk_size):
-                # Clean and validate the data before insertion
-                chunk = chunk.copy()
-                # Convert to float first to handle scientific notation, then to Int64 for nullable integers
-                chunk['tweet_id'] = pd.to_numeric(chunk['tweet_id'], errors='coerce')
-                chunk['reply_to_id'] = pd.to_numeric(chunk['reply_to_id'], errors='coerce')
+        try:
+            # Load replies into SQLite
+            logger.info("Loading replies into database...")
+            total_replies = 0
+            valid_replies = 0
+            
+            for chunk in tqdm(pd.read_csv(self.replies_file, chunksize=self.chunk_size)):
+                chunk_size = len(chunk)
+                total_replies += chunk_size
+                self._process_chunk(chunk, conn)
                 
-                self._insert_conversation_data(chunk, conn)
-                pbar.update(1)
-        
-        # Rest of the method remains the same...
-        conn.close()
-        return {}
+                c = conn.cursor()
+                c.execute('SELECT COUNT(*) FROM conversation_map')
+                valid_replies = c.fetchone()[0]
+                
+            logger.info(f"Processed {total_replies:,} total replies, {valid_replies:,} valid replies stored")
 
-    def _insert_conversation_data(self, chunk_data: pd.DataFrame, conn: sqlite3.Connection):
-        """Insert conversation data with REPLACE strategy and proper NA handling"""
-        # Convert chunk data to list of tuples
-        data_to_insert = []
-        
-        for _, row in chunk_data[['tweet_id', 'reply_to_id']].iterrows():
-            # Handle tweet_id
-            try:
-                if pd.isna(row['tweet_id']) or row['tweet_id'] == '<NA>':
-                    continue
-                tweet_id = str(int(float(row['tweet_id'])))
-            except (ValueError, TypeError):
-                logger.warning(f"Skipping invalid tweet_id: {row['tweet_id']}")
-                continue
+            c = conn.cursor()
+            c.execute('SELECT COUNT(DISTINCT reply_to_id) FROM conversation_map WHERE reply_to_id IS NOT NULL')
+            unique_parents = c.fetchone()[0]
+            logger.info(f"Found {unique_parents:,} unique parent tweets")
 
-            # Handle reply_to_id
-            try:
-                if pd.isna(row['reply_to_id']) or row['reply_to_id'] == '<NA>':
-                    reply_to_id = None
-                else:
-                    reply_to_id = str(int(float(row['reply_to_id'])))
-            except (ValueError, TypeError):
-                reply_to_id = None
-                logger.debug(f"Converting invalid reply_to_id to None: {row['reply_to_id']}")
-
-            data_to_insert.append((
-                tweet_id,
-                None,  # conversation_id initially null
-                reply_to_id,
-                0  # processed flag
-            ))
-
-        if data_to_insert:
-            try:
-                # Use INSERT OR REPLACE to handle duplicates
-                conn.executemany(
-                    '''INSERT OR REPLACE INTO conversation_map 
-                    (tweet_id, conversation_id, reply_to_id, processed) 
-                    VALUES (?, ?, ?, ?)''',
-                    data_to_insert
+            # Find conversations more efficiently
+            logger.info("Identifying conversation threads...")
+            c.execute('''
+                WITH conversation_sizes AS (
+                    SELECT reply_to_id, COUNT(*) as reply_count,
+                        GROUP_CONCAT(tweet_id) as reply_ids
+                    FROM conversation_map
+                    WHERE reply_to_id IS NOT NULL
+                    GROUP BY reply_to_id
+                    HAVING COUNT(*) >= ?
                 )
-                conn.commit()
-            except sqlite3.Error as e:
-                logger.error(f"SQLite error during insertion: {e}")
-                conn.rollback()
+                SELECT reply_to_id, reply_count, reply_ids
+                FROM conversation_sizes
+                ORDER BY reply_count DESC
+            ''', (self.min_conversation_size,))
+            
+            potential_threads = c.fetchall()
+            logger.info(f"Found {len(potential_threads):,} potential conversation threads")
 
-# Additional robust methods as needed to ensure the pipeline handles errors gracefully.
+            conversations = {}
+            processed = 0
+            
+            for root_id, reply_count, reply_ids in potential_threads:
+                try:
+                    # Split reply_ids string into list
+                    reply_id_list = reply_ids.split(',')
+                    
+                    # Create parameterized query with correct number of placeholders
+                    placeholders = ','.join(['?' for _ in range(len(reply_id_list) + 1)])  # +1 for root_id
+                    query = f'''
+                        SELECT tweet_id, reply_to_id, created_at, full_text, original_user_id
+                        FROM conversation_map
+                        WHERE tweet_id IN ({placeholders})
+                        ORDER BY created_at
+                    '''
+                    
+                    # Execute query with all IDs (including root_id)
+                    c.execute(query, [root_id] + reply_id_list)
+                    
+                    messages = [
+                        dict(zip(['tweet_id', 'reply_to_id', 'created_at', 'full_text', 'original_user_id'], row))
+                        for row in c.fetchall()
+                    ]
+                    
+                    if len(messages) >= self.min_conversation_size:
+                        conversations[root_id] = messages
+                        self._update_stats(len(messages))
+                        processed += 1
+                        
+                        if processed % 1000 == 0:
+                            logger.info(f"Processed {processed:,} conversations")
+                            
+                except Exception as e:
+                    logger.error(f"Error processing conversation {root_id}: {e}")
+                    continue
+
+            logger.info(f"Extracted {len(conversations):,} complete conversations")
+            if conversations:
+                sample_convo = next(iter(conversations.values()))
+                logger.info(f"Sample conversation size: {len(sample_convo)}")
+                logger.info(f"Sample conversation messages:")
+                for msg in sample_convo[:3]:  # Show first 3 messages
+                    logger.info(f"Tweet ID: {msg['tweet_id']}, Reply to: {msg['reply_to_id']}")
+
+            return conversations
+            
+        except Exception as e:
+            logger.error(f"Error extracting conversations: {e}")
+            raise
+            
+        finally:
+            conn.close()
+
+    def _update_stats(self, conv_size: int) -> None:
+        """Update conversation statistics"""
+        self.conversation_stats['total_conversations'] += 1
+        if conv_size >= self.min_conversation_size:
+            self.conversation_stats['meaningful_conversations'] += 1
+        self.conversation_stats['max_conversation_length'] = max(
+            self.conversation_stats['max_conversation_length'],
+            conv_size
+        )
+        self.conversation_stats['min_conversation_length'] = min(
+            self.conversation_stats['min_conversation_length'],
+            conv_size
+        )
+        self.conversation_stats['total_tweets_processed'] += conv_size
+
+    def get_conversation_stats(self) -> Dict:
+        """Get current conversation statistics"""
+        if self.conversation_stats['meaningful_conversations'] > 0:
+            self.conversation_stats['avg_conversation_length'] = (
+                self.conversation_stats['total_tweets_processed'] /
+                self.conversation_stats['meaningful_conversations']
+            )
+        return self.conversation_stats

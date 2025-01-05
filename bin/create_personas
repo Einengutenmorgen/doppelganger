@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-
 import argparse
 import os
 import sys
 import logging
 from dotenv import load_dotenv
 import traceback2 as traceback
+import json
 from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 print("Python Path:", sys.path)
-
 
 from research_case.analyzers.persona_analysis import PersonaAnalyzer
 from research_case.analyzers.llm_client import LLMClient
@@ -22,6 +20,35 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+def load_and_sample_users(input_path: str, max_personas: int) -> dict:
+    """
+    Load user data from JSON and sample up to max_personas users.
+    
+    Args:
+        input_path: Path to input JSON file
+        max_personas: Maximum number of personas to create
+        
+    Returns:
+        Dict containing sampled user data
+    """
+    try:
+        with open(input_path, 'r') as f:
+            all_users = json.load(f)
+            
+        # If max_personas is specified and less than total users, sample randomly
+        if max_personas and len(all_users) > max_personas:
+            import random
+            sampled_user_ids = random.sample(list(all_users.keys()), max_personas)
+            sampled_users = {uid: all_users[uid] for uid in sampled_user_ids}
+            logger.info(f"Sampled {max_personas} users from total {len(all_users)} users")
+            return sampled_users
+        
+        return all_users
+        
+    except Exception as e:
+        logger.error(f"Error loading user data: {e}")
+        raise
+
 def main():
     # Step 1: Parse command-line arguments
     parser = argparse.ArgumentParser(
@@ -31,7 +58,6 @@ def main():
         "--input",
         type=str,
         required=True,
-        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_users.json'),
         help="Path to the input JSON file containing user posts or conversations."
     )
     parser.add_argument(
@@ -44,34 +70,35 @@ def main():
         "--output",
         type=str,
         required=False,
-        defaults=f'{os.path.join(os.path.dirname(os.path.dirname(__file__)), 'results/CURRENTDAYANDTIME/Personas.json')}'.",
-        help="Path to save the persona analysis results. Defaults to '/Users/mogen/Desktop/Research_Case/results/CURRENTDAYANDTIME/Personas.json'."
+        help="Path to save the persona analysis results. Defaults to '<input_dir>/personas.json'."
     )
     parser.add_argument(
         "--n-posts",
         type=int,
         default=5,
-        help="Number of posts to include in the analysis (default: 5)."
+        help="Number of posts per user to include in the analysis (default: 5)."
     )
     parser.add_argument(
         "--n-conversations",
         type=int,
         default=5,
-        help="Number of conversations to include in the analysis (default: 5)."
+        help="Number of conversations per user to include in the analysis (default: 5)."
     )
+    parser.add_argument(
+        "--max-personas",
+        type=int,
+        default=None,
+        help="Maximum number of personas to create (default: unlimited)."
+    )
+    
     args = parser.parse_args()
 
     # Step 2: Set up file paths
     input_path = args.input
     conversations_path = args.conversations
     output_path = args.output or os.path.join(
-        "/Users/mogen/Desktop/Research_Case/results",
-        datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "personas.json"
+        os.path.dirname(input_path), "personas.json"
     )
-
-    # Create the directory if it doesn't exist
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # Validate input file
     if not os.path.exists(input_path):
@@ -79,23 +106,40 @@ def main():
         exit(1)
     
     # Step 3: Initialize PersonaAnalyzer
-    llm_client = api_key=os.getenv(LLMClient('OPENAI_API_KEY'))  # Replace with actual client initialization
+    llm_client = LLMClient(api_key=os.getenv('OPENAI_API_KEY'))
     analyzer = PersonaAnalyzer(llm_client)
 
     # Step 4: Run analysis
     try:
         logger.info("Starting persona analysis...")
+        
+        # Load and sample users if max_personas is specified
+        sampled_users = load_and_sample_users(input_path, args.max_personas)
+        
+        # Save sampled users to a temporary file
+        temp_input = os.path.join(os.path.dirname(input_path), "temp_sampled_users.json")
+        with open(temp_input, 'w') as f:
+            json.dump(sampled_users, f)
+        
+        # Run analysis on sampled users
         analyzer.analyze_persona_from_files(
-            posts_path=input_path,
+            posts_path=temp_input,
             conversations_path=conversations_path,
             output_path=output_path,
             n_posts=args.n_posts,
             n_conversations=args.n_conversations
         )
+        
+        # Clean up temporary file
+        os.remove(temp_input)
+        
         logger.info(f"Persona analysis completed. Results saved to {output_path}")
+        
     except Exception as e:
         logger.error("Failed to analyze personas:")
         logger.error(traceback.format_exc())
+        if 'temp_input' in locals() and os.path.exists(temp_input):
+            os.remove(temp_input)
         raise
         exit(1)
 
