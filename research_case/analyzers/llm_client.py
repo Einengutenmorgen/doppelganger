@@ -27,7 +27,13 @@ class LLMClient:
         self.max_retries = max_retries
 
     #@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=1, max=10),retry=retry_if_exception_type(TypeError))
-    def call(self, prompt: str, temperature: float = 0.5, max_tokens: int = 1000) -> str:
+    def call(
+        self, 
+        prompt: str, 
+        temperature: float = 0.5, 
+        max_tokens: int = 1000, 
+        response_format: dict = {"type": "json_object"}
+    ) -> str:
         """
         Call the LLM model with retries and error handling.
         
@@ -35,18 +41,27 @@ class LLMClient:
             prompt: The input prompt for the model
             temperature: Sampling temperature
             max_tokens: Maximum number of tokens in the response
+            response_format: Optional parameter to specify response format (default: JSON)
             
         Returns:
             The model's response content
         """
         try:
-            response =  self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"}
-            )
+            # Prepare the base payload
+            payload = {
+                "model": self.model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+
+            # Add response_format unless explicitly set to None
+            if response_format is not None:
+                payload["response_format"] = response_format
+
+            # Make the API call
+            response = self.client.chat.completions.create(**payload)
+            
             logger.debug(f"LLM Response: {response}")  # Log the raw response
             return response.choices[0].message.content
         

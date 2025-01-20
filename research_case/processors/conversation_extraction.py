@@ -6,6 +6,11 @@ from typing import Dict, List
 from collections import defaultdict
 import pandas as pd
 from tqdm import tqdm
+import re
+import emoji
+from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,10 @@ class ConversationExtractor:
             'total_tweets_processed': 0,
             'max_conversation_length': 0,
             'min_conversation_length': float('inf'),
-            'avg_conversation_length': 0
+            'avg_conversation_length': 0,
+            'total_conversations_before_filter': 0,  # Added for filtering stats
+            'conversations_after_filter': 0,         # Added for filtering stats
+            'filter_retention_rate': 0              # Added for filtering stats
         }
 
     def _setup_database(self):
@@ -152,14 +160,21 @@ class ConversationExtractor:
                     continue
 
             logger.info(f"Extracted {len(conversations):,} complete conversations")
-            if conversations:
-                sample_convo = next(iter(conversations.values()))
-                logger.info(f"Sample conversation size: {len(sample_convo)}")
+            
+            # Apply filtering to conversation roots
+            logger.info("Applying root message filtering...")
+            filtered_conversations = self.filter_conversations(conversations)
+            
+            logger.info(f"Filtering complete. Retained {len(filtered_conversations)} conversations")
+            
+            if filtered_conversations:
+                sample_convo = next(iter(filtered_conversations.values()))
+                logger.info(f"Sample filtered conversation size: {len(sample_convo)}")
                 logger.info(f"Sample conversation messages:")
                 for msg in sample_convo[:3]:  # Show first 3 messages
                     logger.info(f"Tweet ID: {msg['tweet_id']}, Reply to: {msg['reply_to_id']}")
-
-            return conversations
+            
+            return filtered_conversations
             
         except Exception as e:
             logger.error(f"Error extracting conversations: {e}")
@@ -191,3 +206,103 @@ class ConversationExtractor:
                 self.conversation_stats['meaningful_conversations']
             )
         return self.conversation_stats
+
+    def filter_conversations(self, conversations: Dict[str, List[dict]], min_length: int = 25) -> Dict[str, List[dict]]:
+        """
+        Filter conversations based on root message criteria.
+        Uses the same filtering logic as posts to validate conversation root messages.
+        
+        Args:
+            conversations: Dictionary of conversation threads
+            min_length: Minimum length for root messages (default: 25 characters)
+            
+        Returns:
+            Dictionary of filtered conversations
+        """
+        
+        def is_valid_root(text: str) -> bool:
+            try:
+                # Basic type check
+                if not isinstance(text, str):
+                    return False
+                    
+                # Check for URLs (enhanced pattern to catch short URLs)
+                url_pattern = r'(https?:\/\/|www\.)\S+|bit\.ly\/\S+|t\.co\/\S+|goo\.gl\/\S+|tinyurl\.com\/\S+'
+                if re.search(url_pattern, text, re.IGNORECASE):
+                    return False
+                    
+                # Count mentions
+                mention_pattern = r'@\w+'
+                mentions = re.findall(mention_pattern, text)
+                if len(mentions) > 1:
+                    return False
+                    
+                # Remove mentions and clean text
+                text_without_mentions = re.sub(mention_pattern, '', text)
+                clean_text = text_without_mentions.strip()
+                    
+                # Check minimum length
+                if len(clean_text) < min_length:
+                    return False
+                    
+                # Check for emoji-only content
+                text_without_emojis = ''.join(c for c in clean_text if c not in emoji.EMOJI_DATA)
+                if not text_without_emojis.strip():
+                    return False
+                    
+                # Check language using fasttext
+                try:
+                    lang = detect(clean_text)
+                    if lang != 'en':
+                        return False
+                except LangDetectException:
+                    logger.error("Language detection failed")
+                    return False
+                    
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error processing root message: {e}")
+                return False
+        
+        try:
+            filtered_conversations = {}
+            total_convs = len(conversations)
+            kept_convs = 0
+            
+            logger.info(f"Starting conversation filtering. Total conversations: {total_convs}")
+            
+            for conv_id, messages in conversations.items():
+                if not messages:  # Skip empty conversations
+                    continue
+                    
+                # Get root message (first message in the conversation)
+                root_message = messages[0]
+                root_text = root_message.get('full_text', '')
+                
+                # Apply filtering to root message
+                if is_valid_root(root_text):
+                    filtered_conversations[conv_id] = messages
+                    kept_convs += 1
+                    
+                    if kept_convs % 1000 == 0:
+                        logger.info(f"Processed {kept_convs} valid conversations so far...")
+            
+            logger.info(f"Conversation filtering complete. Kept {kept_convs} out of {total_convs} conversations")
+            
+            # Update conversation stats
+            self._update_filtered_stats(total_convs, kept_convs)
+            
+            return filtered_conversations
+            
+        except Exception as e:
+            logger.error(f"Error in conversation filtering: {e}")
+            raise
+     
+            
+
+    def _update_filtered_stats(self, total: int, kept: int) -> None:
+        """Update statistics after filtering."""
+        self.conversation_stats['total_conversations_before_filter'] = total
+        self.conversation_stats['conversations_after_filter'] = kept
+        self.conversation_stats['filter_retention_rate'] = (kept / total * 100) if total > 0 else 0

@@ -6,7 +6,7 @@ import logging
 from dotenv import load_dotenv
 import traceback2 as traceback
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print("Python Path:", sys.path)
@@ -57,20 +57,21 @@ def main():
     parser.add_argument(
         "--input",
         type=str,
-        required=True,
+        default="/Users/mogen/Desktop/Research_Case/data/preprocessed/processed_users.json",
         help="Path to the input JSON file containing user posts or conversations."
     )
     parser.add_argument(
         "--conversations",
         type=str,
         required=False,
+        default="/Users/mogen/Desktop/Research_Case/data/preprocessed/processed_conversations.json",
         help="Path to the optional JSON file containing user conversations."
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        help="Path to save the persona analysis results. Defaults to '<input_dir>/personas.json'."
+        help="Path to save the persona analysis results. Defaults to 'experiment_name/personas.json'."
     )
     parser.add_argument(
         "--n-posts",
@@ -90,15 +91,19 @@ def main():
         default=None,
         help="Maximum number of personas to create (default: unlimited)."
     )
+    parser.add_argument(
+        "--experiment-name",
+        type=str,
+        required=True,
+        help="Name of the experiment (used for output directory)"
+    )
     
     args = parser.parse_args()
 
     # Step 2: Set up file paths
     input_path = args.input
     conversations_path = args.conversations
-    output_path = args.output or os.path.join(
-        os.path.dirname(input_path), "personas.json"
-    )
+    output_path = args.output or os.path.join(args.experiment_name, "personas.json")
 
     # Validate input file
     if not os.path.exists(input_path):

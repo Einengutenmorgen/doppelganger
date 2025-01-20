@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 from itertools import islice
@@ -47,7 +47,7 @@ def generate_posts_for_user(
         List of generated post records
     """
     generated_records = []
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     for i in range(posts_per_persona):
         if i < len(original_posts):
@@ -95,15 +95,15 @@ def main():
     parser.add_argument(
         "--posts",
         type=str,
-        required=True,
-        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/processed_data/processed_users.json'),
+        required=False,
+        default='./data/preprocessed/processed_users.json',
         help="Path to the JSON file containing original posts for stimulus generation."
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        help="Path to save the generated posts. Defaults to the persona dirctory '<input_dir>/generated_posts.json'."
+        help="Path to save the generated posts. Defaults to the persona dirctory '<experiment>/generated_posts.json'."
     )
     parser.add_argument(
         "--posts-per-persona",
@@ -170,7 +170,7 @@ def main():
         # Add generation run metadata
         output_data = {
             "metadata": {
-                "generation_timestamp": datetime.utcnow().isoformat(),
+                "generation_timestamp": datetime.now(timezone.utc).isoformat(),
                 "num_users": len(personas),
                 "posts_per_persona": args.posts_per_persona,
                 "total_posts_generated": len(all_generated_records)

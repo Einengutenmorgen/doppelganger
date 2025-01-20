@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 from datetime import datetime, UTC 
+from datetime import timezone
 from pathlib import Path
 from typing import Dict, List
 from dotenv import load_dotenv
@@ -45,7 +46,7 @@ def generate_responses_for_conversation(
         List of generated response records
     """
     generated_records = []
-    timestamp = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     # Sort messages by timestamp to maintain conversation flow
     messages = sorted(conversation_messages, key=lambda x: x.get('created_at', ''))
@@ -105,16 +106,15 @@ def main():
     parser.add_argument(
         "--conversations",
         type=str,
-        required=True,
-        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                           'data/processed_data/processed_conversations.json'),
+        required=False,
+        default='data/preprocessed/processed_conversations.json',
         help="Path to the JSON file containing conversation threads."
     )
     parser.add_argument(
         "--output",
         type=str,
         required=False,
-        help="Path to save the generated responses. Defaults to '<input_dir>/generated_conversations.json'."
+        help="Path to save the generated responses. Defaults to '<personas>/generated_conversations.json'."
     )
     parser.add_argument(
         "--min-messages",
@@ -132,7 +132,7 @@ def main():
         "--for-n-conversations",
         type=int,
         default=50,
-        help="Maximum number of conversations that should be used (default: 50."
+        help="Maximum number of conversations that should be used (default: 50)."
     )
     args = parser.parse_args()
 
@@ -189,7 +189,7 @@ def main():
         # Add generation run metadata
         output_data = {
             "metadata": {
-                "generation_timestamp": datetime.now(UTC).isoformat(),
+                "generation_timestamp": datetime.now(timezone.utc).isoformat(),
                 "conversations_processed": len(conversations),
                 "total_responses_generated": len(all_generated_records),
                 "min_messages": args.min_messages,

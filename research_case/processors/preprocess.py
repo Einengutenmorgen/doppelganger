@@ -10,6 +10,8 @@ import pandas as pd
 import emoji
 from tqdm import tqdm
 import psutil
+from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
 
 logger = logging.getLogger(__name__)
 
@@ -63,36 +65,87 @@ class DataPreprocessor:
             
         return posts_file, replies_file
     
-    def filter_tweets(self, input_file: str, output_file: str, min_length: int = 10) -> None:
-        """Filter tweets from input file to output file in chunks."""
-        def is_valid_tweet(text):
-            if not isinstance(text, str):
-                return False
+    def filter_tweets(self, input_file: str, output_file: str, min_length: int = 25) -> None:
+            """
+            Filter tweets from input file to output file in chunks with enhanced filtering criteria:
+            - Remove all posts containing URLs (including shortened URLs)
+            - Filter out tweets shorter than specified minimum length (default 25 characters)
+            - Filter out non-English texts using fasttext
+            - Filter out tweets with more than 1 mention
             
-            # Remove URLs
-            url_pattern = r'https?://\S+|www\.\S+'
-            text_without_urls = re.sub(url_pattern, '', text).strip()
-            
-            if not text_without_urls or len(text_without_urls) < min_length:
-                return False
-            
-            # Check for emoji-only
-            text_without_emojis = ''.join(c for c in text_without_urls if c not in emoji.EMOJI_DATA)
-            if not text_without_emojis.strip():
-                return False
-            
-            # Check for mentions-only
-            mentions_pattern = r'^(@\S+\s*)+$'
-            if re.match(mentions_pattern, text_without_urls.strip()):
-                return False
-            
-            return True
+            Args:
+                input_file: Path to input CSV file
+                output_file: Path to output CSV file
+                min_length: Minimum length of tweet text (default 25 characters)
+            """
 
-        header = True
-        for chunk in pd.read_csv(input_file, chunksize=self.chunk_size):
-            filtered_chunk = chunk[chunk['full_text'].apply(is_valid_tweet)]
-            filtered_chunk.to_csv(output_file, mode='a', header=header, index=False)
-            header = False
+            
+            def is_valid_tweet(row):
+                try:
+                    text = row['full_text']
+                    
+                    # Basic type check
+                    if not isinstance(text, str):
+                        return False
+                        
+                    # Check for URLs (enhanced pattern to catch short URLs)
+                    url_pattern = r'(https?:\/\/|www\.)\S+|bit\.ly\/\S+|t\.co\/\S+|goo\.gl\/\S+|tinyurl\.com\/\S+'
+                    if re.search(url_pattern, text, re.IGNORECASE):
+                        return False
+                        
+                    # Count mentions
+                    mention_pattern = r'@\w+'
+                    mentions = re.findall(mention_pattern, text)
+                    if len(mentions) > 1:
+                        return False
+                        
+                    # Remove mentions and clean text
+                    text_without_mentions = re.sub(mention_pattern, '', text)
+                    clean_text = text_without_mentions.strip()
+                        
+                    # Check minimum length
+                    if len(clean_text) < min_length:
+                        return False
+                        
+                    # Check for emoji-only content
+                    text_without_emojis = ''.join(c for c in clean_text if c not in emoji.EMOJI_DATA)
+                    if not text_without_emojis.strip():
+                        return False
+                        
+                    # Check language using fasttext
+                    try:
+                        lang = detect(clean_text)
+                        if lang != 'en':
+                            return False
+                    except LangDetectException:
+                        logger.error("Language detection failed")
+                        return False
+                        
+                    return True
+                    
+                except Exception as e:
+                    logger.error(f"Error processing tweet: {e}")
+                    return False
+
+            try:
+                header = True
+                for chunk in pd.read_csv(input_file, chunksize=self.chunk_size):
+                    try:
+                        filtered_chunk = chunk[chunk.apply(is_valid_tweet, axis=1)]
+                        filtered_chunk.to_csv(output_file, mode='a', header=header, index=False)
+                        header = False
+                        
+                        # Log progress
+                        logger.info(f"Processed chunk: {len(chunk)} rows, kept {len(filtered_chunk)} rows")
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing chunk: {e}")
+                        continue
+                        
+            except Exception as e:
+                logger.error(f"Fatal error in filter_tweets: {e}")
+                raise
+                
             
     def group_users_by_id(self, posts_file: str) -> Dict:
         """Group posts by user ID efficiently."""

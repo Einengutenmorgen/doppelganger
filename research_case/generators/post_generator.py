@@ -110,34 +110,35 @@ class StimulusGenerator:
         Returns:
             Generic stimulus description
         """
-        template = """Given this social media post:
+        template = """Describe the topic of the tweet with enough detail so that it can be reused to create a similar tweet. 
+It is important that you extract the topic of the tweet and phrase it as neutrally as possible, completely removing any original opinion, viewpoint, or commentary, while retaining important details and facts.
+Includde the style of the tweet (e.g. question, comment, opinion, statement, information etc.) before the topic. The style should also not give away the direction of the tweet.
+If the tweet requires you to invent or create a context, please reply with 'CONTEXT MISSING'.
+Don't add any additional remarks or comments.
+
+Tweet:
 "{post}"
 
-Create a brief, generic description of what kind of post this is and its general topic, 
-WITHOUT including any specific details, names, or quotes from the original.
-Keep it high-level and abstract.
+Respond ONLY with the stimulus description, nothing else.
 
-Example input: "Just watched the new Spider-Man movie. The special effects were amazing! @TomHolland is the best Spider-Man ever #NWH"
-Example output: A post about a recently watched superhero movie (Spiderman) and its lead actor
-
-Write ONLY the generic description
-Return a JSON object with this structure:
-{{ "stimulus": "your generic description here" }}
-Remember: Respond ONLY with the JSON object, nothing else.
 """
 
 
         try:
             response = self.llm_client.call(
                 template.format(post=original_post),
-                temperature=0.4,  # Lower temperature for more consistent outputs
-                max_tokens=50
+                temperature=0.2,  # Lower temperature for more consistent outputs
+                max_tokens=50,
+                response_format=None
             )
+            stimulus = response.strip().strip('"').strip()
             
-            # Parse JSON response and extract stimulus
-            response_json = json.loads(response)
-            return response_json.get('stimulus', '')
-            
+            # Handle context missing case
+            if stimulus.upper() == 'CONTEXT MISSING':
+                logger.warning(f"Context missing for tweet: {original_post[:50]}...")
+                return stimulus
+                
+            return stimulus
         except Exception as e:
             logger.error(f"Error creating stimulus: {e}")
             raise

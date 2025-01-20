@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from .rouge_evaluator import RougeEvaluator
@@ -98,7 +98,7 @@ class EvaluationPipeline:
             'aggregate_metrics': self._calculate_aggregate_metrics(evaluations),
             'metadata': {
                 'total_evaluated': len(evaluations),
-                'evaluation_timestamp': datetime.now().isoformat(),
+                'evaluation_timestamp': datetime.now(timezone.utc).isoformat(),
                 'version': '1.0'
             }
         }
@@ -131,7 +131,7 @@ class EvaluationPipeline:
             'llm_evaluation': self.llm_judge._get_default_evaluation(),
             'metadata': {
                 'error': 'Evaluation failed',
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         }
     

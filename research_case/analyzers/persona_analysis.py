@@ -4,6 +4,8 @@ import logging
 from typing import List, Dict, Optional, Union
 from dataclasses import dataclass
 import traceback2 as traceback
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 
 from .llm_client import LLMClient
 from .persona_prompt import PERSONA_FIELDS, PERSONA_ANALYSIS_PROMPT, EXAMPLE_PERSONA
@@ -22,8 +24,48 @@ class PersonaAnalysis:
     language_preferences: Dict[str, str]
 
 class PersonaAnalyzer:
-    def __init__(self, llm_client: LLMClient):
+    """
+    Main entry point for persona analysis from file inputs.
+    Args:
+        posts_path (str): Path to JSON file with user posts.
+        conversations_path (Optional[str]): Path to JSON file with conversations.
+        output_path (str): Path to save the persona analysis results.
+        n_posts (int): Number of posts to include in the analysis.
+        n_conversations (int): Number of conversations to include in the analysis.
+    """
+    def __init__(self, llm_client: LLMClient, 
+                 max_retries: int = 3,
+                 initial_wait: float = 1,
+                 max_wait: float = 10):
         self.llm_client = llm_client
+        self.max_retries = max_retries
+        self.initial_wait = initial_wait
+        self.max_wait = max_wait
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((Exception)),
+        before_sleep=lambda retry_state: logger.warning(
+            f"Retry attempt {retry_state.attempt_number} after error, waiting {retry_state.idle_for:.1f}s..."
+        )
+    )
+    def _get_persona_with_retry(self, prompt: str) -> Dict:
+        """Make LLM API call and parse response with unified retry logic"""
+        try:
+            # First make the API call
+            response = self.llm_client.call(prompt)
+            
+            # Then try to parse it
+            try:
+                return self.parse_analysis(response)
+            except (json.JSONDecodeError, KeyError, ValueError) as parse_error:
+                logger.error(f"Parse failed: {str(parse_error)}, retrying entire operation")
+                raise  # This will trigger a retry of both call and parse
+                
+        except Exception as e:
+            logger.error(f"Operation failed: {str(e)}")
+            raise  # This will trigger a retry of both call and parse
 
     def analyze_persona_from_files(
         self, 
@@ -33,15 +75,7 @@ class PersonaAnalyzer:
         n_posts: int = 5, 
         n_conversations: int = 5
     ) -> None:
-        """
-        Main entry point for persona analysis from file inputs.
-        Args:
-            posts_path (str): Path to JSON file with user posts.
-            conversations_path (Optional[str]): Path to JSON file with conversations.
-            output_path (str): Path to save the persona analysis results.
-            n_posts (int): Number of posts to include in the analysis.
-            n_conversations (int): Number of conversations to include in the analysis.
-        """
+        
         try:
             # Step 1: Load inputs
             posts = self.load_json(posts_path)
@@ -130,9 +164,29 @@ class PersonaAnalyzer:
     def save_json(data: Dict, file_path: str) -> None:
         """
         Save a dictionary as a JSON file.
+        Args:
+            data: Dictionary to save
+            file_path: Path where to save the JSON file
         """
-        with open(file_path, "w") as f:
-            json.dump(data, f, indent=4)
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
+            
+            # Save with pretty printing
+            with open(file_path, "w", encoding='utf-8') as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+                
+            # Verify file was written
+            if not os.path.exists(file_path):
+                raise IOError(f"Failed to create file at {file_path}")
+                
+            # Log success with file size
+            file_size = os.path.getsize(file_path)
+            logger.info(f"Successfully saved JSON file ({file_size} bytes) to {file_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save JSON file to {file_path}: {str(e)}")
+            raise
 
     @staticmethod
     def get_user_conversations(user: str, conversations: Union[Dict, List[Dict]], n_conversations: int) -> List[Dict]:

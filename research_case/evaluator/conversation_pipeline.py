@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
@@ -67,7 +67,7 @@ class ConversationEvaluationPipeline:
                 'semantic_similarity': semantic_similarity,
                 'conversation_metrics': llm_evaluation,
                 'metadata': evaluation.metadata or {},
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
         except Exception as e:
