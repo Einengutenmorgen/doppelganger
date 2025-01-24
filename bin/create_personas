@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print("Python Path:", sys.path)
 
-from research_case.analyzers.persona_analysis import PersonaAnalyzer
+from research_case.analyzers.persona_analysis import PersonaAnalyzer , ExtendedPersonaAnalyzer
 from research_case.analyzers.llm_client import LLMClient
 
 load_dotenv()
@@ -97,6 +97,17 @@ def main():
         required=True,
         help="Name of the experiment (used for output directory)"
     )
+    parser.add_argument(
+        "--use-random-fields",
+        action="store_true",
+        help="Use random fields for persona analysis"
+    )
+    parser.add_argument(
+        "--num-fields",
+        type=int,
+        default=5,
+        help="Number of random fields to use (only if use-random-fields is set)"
+    )
     
     args = parser.parse_args()
 
@@ -112,7 +123,12 @@ def main():
     
     # Step 3: Initialize PersonaAnalyzer
     llm_client = LLMClient(api_key=os.getenv('OPENAI_API_KEY'))
-    analyzer = PersonaAnalyzer(llm_client)
+    # Create the appropriate analyzer based on needs
+    if args.use_random_fields:
+        analyzer = ExtendedPersonaAnalyzer(llm_client)
+    else:
+        analyzer = PersonaAnalyzer(llm_client)
+    
 
     # Step 4: Run analysis
     try:
@@ -132,7 +148,9 @@ def main():
             conversations_path=conversations_path,
             output_path=output_path,
             n_posts=args.n_posts,
-            n_conversations=args.n_conversations
+            n_conversations=args.n_conversations,
+            use_random_fields=args.use_random_fields,
+            num_fields=args.num_fields
         )
         
         # Clean up temporary file

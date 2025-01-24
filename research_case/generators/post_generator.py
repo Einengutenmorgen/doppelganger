@@ -67,9 +67,10 @@ Important guidelines:
 - Include typical social media elements (hashtags, @mentions) if that fits the persona
 - Keep the length realistic for social media
 - Do not directly copy or closely paraphrase the stimulus
+- Formulate precise and 
 
 Return a JSON object with this structure:
-JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤 Corporate greed is getting out of hand! Remember when it was $3? #inflation #ripoff"}}
+JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤 Corporate greed is getting out of hand!"}}
 """
 
         prompt_text = template.format(
