@@ -1,5 +1,4 @@
 # """Shared persona prompts and templates.
-
 # Contains templates and prompts for:
 # 1. Basic persona analysis (PERSONA_ANALYSIS_PROMPT)
 # 2. Detailed character analysis (CHARACTER_ANALYSIS_PROMPT)
