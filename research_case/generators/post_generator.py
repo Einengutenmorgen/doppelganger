@@ -31,10 +31,13 @@ class PostGenerator:
         """Format persona characteristics based on PERSONA_FIELDS."""
         sections = []
         for field in PERSONA_FIELDS:
-            if field not in persona:
-                raise KeyError(f"Missing required persona field: {field}")
-            formatted_field = field.replace('_', ' ').title()
-            sections.append(f"{formatted_field}: {persona[field]}")
+            if field in persona:  # Only include fields that are present
+                formatted_field = field.replace('_', ' ').title()
+                sections.append(f"{formatted_field}: {persona[field]}")
+        
+        if not sections:  # Ensure we have at least some persona data
+            raise ValueError("Persona must contain at least one valid field")
+            
         return "\n".join(sections)
     
     def generate_post(self, prompt: GenerationPrompt) -> str:
@@ -47,9 +50,9 @@ class PostGenerator:
         Returns:
             Generated post text
         """
-        for field in PERSONA_FIELDS:
-            if field not in prompt.persona:
-                raise KeyError(f"Missing required persona field: {field}")
+        if not prompt.persona:
+            raise ValueError("Persona dictionary cannot be empty")
+
 
         template = """You are a social media user with the following characteristics:
 
@@ -67,7 +70,7 @@ Important guidelines:
 - Include typical social media elements (hashtags, @mentions) if that fits the persona
 - Keep the length realistic for social media
 - Do not directly copy or closely paraphrase the stimulus
-- Formulate precise and 
+- Formulate precise
 
 Return a JSON object with this structure:
 JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤 Corporate greed is getting out of hand!"}}

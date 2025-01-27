@@ -16,9 +16,30 @@ class EvaluationPipeline:
     
     def __init__(self):
         """Initialize evaluation components."""
-        self.rouge_evaluator = RougeEvaluator()
-        self.similarity_analyzer = SimilarityAnalyzer()
-        self.llm_judge = LLMJudge()
+        self._rouge_evaluator = None
+        self._similarity_analyzer = None
+        self._llm_judge = None
+    
+    @property
+    def rouge_evaluator(self):
+        """Lazy load RougeEvaluator."""
+        if self._rouge_evaluator is None:
+            self._rouge_evaluator = RougeEvaluator()
+        return self._rouge_evaluator
+    
+    @property
+    def similarity_analyzer(self):
+        """Lazy load SimilarityAnalyzer."""
+        if self._similarity_analyzer is None:
+            self._similarity_analyzer = SimilarityAnalyzer()
+        return self._similarity_analyzer
+    
+    @property
+    def llm_judge(self):
+        """Lazy load LLMJudge."""
+        if self._llm_judge is None:
+            self._llm_judge = LLMJudge()
+        return self._llm_judge
         
     def evaluate_post(self, original_post: Dict, generated_post: Dict, persona: Dict) -> Dict:
         """
@@ -80,14 +101,20 @@ class EvaluationPipeline:
         evaluations = []
         for post in data['generated_posts']:
             try:
+                # Dynamically collect all persona-related fields
+                persona = {
+                    key.replace('persona_', ''): value 
+                    for key, value in post.items() 
+                    if key.startswith('persona_')
+                }
+                
                 evaluation = self.evaluate_post(
-                    original_post={'tweet_id': post['original_post_id'], 'full_text': post['original_text']},
+                    original_post={
+                        'tweet_id': post['original_post_id'], 
+                        'full_text': post['original_text']
+                    },
                     generated_post=post,
-                    persona={
-                        'writing_style': post['persona_writing_style'],
-                        'tone': post['persona_tone'],
-                        'topics': post['persona_topics']
-                    }
+                    persona=persona
                 )
                 evaluations.append(evaluation)
             except Exception as e:

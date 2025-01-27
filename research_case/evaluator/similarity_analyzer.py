@@ -3,10 +3,6 @@ import os
 import logging
 from typing import Dict, List
 from dataclasses import dataclass
-import numpy as np
-import torch  # Added PyTorch import
-from transformers import AutoModel, AutoTokenizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +21,44 @@ class SimilarityAnalyzer:
         Args:
             max_length: Maximum input sequence length (default: 2048)
         """
-        try:
-            os.makedirs(MODEL_DIR, exist_ok=True)
-            self.model = AutoModel.from_pretrained(
-                "jinaai/jina-embeddings-v3", 
-                trust_remote_code=True
-            )
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                "jinaai/jina-embeddings-v3"
-            )
-            self.max_length = max_length
-            logger.info("Initialized jina-embeddings model successfully")
-        except Exception as e:
-            logger.error(f"Error initializing jina-embeddings model: {e}")
-            raise
+        self.max_length = max_length
+        self._model = None
+        self._tokenizer = None
+        
+    def _load_model(self):
+        """Lazy load the model and tokenizer."""
+        if self._model is None:
+            import torch
+            from transformers import AutoModel, AutoTokenizer
+            from sklearn.metrics.pairwise import cosine_similarity
+            
+            try:
+                os.makedirs(MODEL_DIR, exist_ok=True)
+                self._model = AutoModel.from_pretrained(
+                    "jinaai/jina-embeddings-v3", 
+                    trust_remote_code=True
+                )
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    "jinaai/jina-embeddings-v3"
+                )
+                logger.info("Initialized jina-embeddings model successfully")
+            except Exception as e:
+                logger.error(f"Error initializing jina-embeddings model: {e}")
+                raise
+    
+    @property
+    def model(self):
+        """Get the model, loading it if necessary."""
+        if self._model is None:
+            self._load_model()
+        return self._model
+    
+    @property
+    def tokenizer(self):
+        """Get the tokenizer, loading it if necessary."""
+        if self._tokenizer is None:
+            self._load_model()
+        return self._tokenizer
 
     def analyze_similarity(self, original: str, regenerated: str) -> float:
         """
@@ -70,6 +90,12 @@ class SimilarityAnalyzer:
             float: Semantic similarity score
         """
         try:
+            import torch
+            from sklearn.metrics.pairwise import cosine_similarity
+            
+            # Ensure model is loaded
+            self._load_model()
+            
             # Tokenize and encode texts
             inputs = self.tokenizer(
                 [text1, text2],

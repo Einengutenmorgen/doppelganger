@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="projectname",  # Replace with your actual project name
+    name="doppelganger",  # Replace with your actual project name
     version="0.1.0",
     packages=find_packages(),
     install_requires=[

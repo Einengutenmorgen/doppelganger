@@ -1,13 +1,8 @@
 import time
-import logging
 from typing import Dict, List, Optional
-from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from tenacity import RetryError
-#import requests
-#from requests import TypeError
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class LLMClient:
@@ -22,9 +17,19 @@ class LLMClient:
             model_name: Name of the model to use
             max_retries: Maximum number of retry attempts
         """
-        self.client = OpenAI(api_key=api_key)
+        self.api_key = api_key
         self.model_name = model_name
         self.max_retries = max_retries
+        self._client = None
+        logging.basicConfig(level=logging.INFO)
+
+    @property
+    def client(self):
+        """Lazy load the OpenAI client."""
+        if self._client is None:
+            from openai import OpenAI
+            self._client = OpenAI(api_key=self.api_key)
+        return self._client
 
     #@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=1, max=10),retry=retry_if_exception_type(TypeError))
     def call(

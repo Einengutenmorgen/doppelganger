@@ -203,6 +203,8 @@
 # append just a lot of fields
 # """
 EXAMPLE_PERSONA = {
+    "general_decription": "A sports commentator mainly for football, active for several news outlets, properly Minnesota fan, Male mid 30s from the midwest",
+    
     "brevity_style": "Favors concise, impactful statements under 180 characters; uses abbreviations sparingly; breaks longer thoughts into well-structured threads of 3-4 tweets",
     
     "language_formality": "Mixed formality level - uses professional language for technical discussions but adopts casual, conversational tone for community engagement. Frequently includes industry terminology with accompanying explanations",
@@ -247,6 +249,7 @@ EXAMPLE_PERSONA = {
 }
 
 PERSONA_FIELDS = [
+    "general_decription",
     "brevity_style",           # How they work within character limits
     "language_formality",      # Level of formal vs casual language
     "narrative_voice",         # Personal vs professional tone

@@ -71,10 +71,7 @@ def generate_posts_for_user(
                 "stimulus": stimulus,
                 "generated_text": generated_text,
                 "generation_timestamp": timestamp,
-                # Include relevant persona characteristics for analysis
-                "persona_writing_style": persona.get("writing_style", ""),
-                "persona_tone": persona.get("tone", ""),
-                "persona_topics": persona.get("topics", ""),
+                **{f"persona_{k}": v for k, v in persona.items()},
             }
             
             generated_records.append(record)
