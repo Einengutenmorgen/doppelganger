@@ -1,4 +1,5 @@
 import time
+import logging
 from typing import Dict, List, Optional
 from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from tenacity import RetryError
@@ -77,3 +78,5 @@ class LLMClient:
         except Exception as e:
             logger.error(f"LLM call failed: {e}", exc_info=True)
             raise
+        
+    

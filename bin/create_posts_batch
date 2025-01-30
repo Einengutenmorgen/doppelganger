@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import logging
+import os
+from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
+
+from research_case.analyzers.llm_client import LLMClient
+from research_case.generators.post_generator_batch import BatchProcessor
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def save_json(data: dict, path: Path):
+    """Save data to JSON file with atomic write"""
+    temp_path = path.with_suffix('.tmp')
+    with open(temp_path, 'w') as f:
+        json.dump(data, f, indent=4)
+    temp_path.replace(path)  # Atomic operation
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate synthetic social media posts using batch processing"
+    )
+    parser.add_argument(
+        "--personas",
+        type=str,
+        required=True,
+        help="Path to JSON file containing user personas"
+    )
+    parser.add_argument(
+        "--posts",
+        type=str,
+        required=True,
+        help="Path to JSON file containing original posts"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        help="Path to save generated posts"
+    )
+    parser.add_argument(
+        "--posts-per-persona",
+        type=int,
+        default=5,
+        help="Number of posts to generate per persona"
+    )
+    parser.add_argument(
+        "--intermediate",
+        type=str,
+        help="Path to intermediate results file to resume from"
+    )
+    args = parser.parse_args()
+
+    # Set up paths
+    output_path = Path(args.output or os.path.join(
+        os.path.dirname(args.personas), "generated_posts.json"
+    ))
+    output_dir = output_path.parent
+    output_dir.mkdir(exist_ok=True)
+    
+    batch_dir = output_dir / "batch_requests"
+    batch_dir.mkdir(exist_ok=True)
+
+    # Initialize client and processor
+    load_dotenv()
+    llm_client = LLMClient(api_key=os.getenv('OPENAI_API_KEY'))
+    processor = BatchProcessor(llm_client)
+
+    try:
+        # Check for intermediate results
+        if args.intermediate and Path(args.intermediate).exists():
+            logger.info(f"Loading intermediate results from {args.intermediate}")
+            with open(args.intermediate) as f:
+                structure = json.load(f)
+                
+            logger.info("Preparing post generation from intermediate results...")
+            post_requests = processor.prepare_post_generation(structure)
+            
+        else:
+            # Start from beginning
+            logger.info("Loading input data...")
+            with open(args.personas) as f:
+                personas = json.load(f)
+            with open(args.posts) as f:
+                original_posts = json.load(f)
+
+            # Step 1 & 2: Prepare and process stimulus batch
+            logger.info("Preparing stimulus batch requests...")
+            stimulus_requests = processor.prepare_stimulus_batch(
+                personas=personas,
+                original_posts=original_posts,
+                posts_per_persona=args.posts_per_persona
+            )
+            
+            logger.info(f"Processing stimulus batch ({len(stimulus_requests)} requests)...")
+            stimulus_results = processor.process_batch(
+                batch_requests=stimulus_requests,
+                batch_path=batch_dir / f"stimulus_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+            )
+            
+            # Step 3: Create and save initial structure
+            logger.info("Creating initial structure...")
+            structure = processor.create_initial_structure(
+                batch_results=stimulus_results,
+                personas=personas,
+                original_posts=original_posts,
+                batch_id=stimulus_results.id
+            )
+            
+            intermediate_path = output_dir / "intermediate_results.json"
+            save_json(structure, intermediate_path)
+            logger.info(f"Saved intermediate results to {intermediate_path}")
+            
+            # Step 4: Prepare post generation
+            logger.info("Preparing post generation requests...")
+            post_requests = processor.prepare_post_generation(structure)
+
+        # Step 5: Generate posts
+        if post_requests:
+            logger.info(f"Processing post generation batch ({len(post_requests)} requests)...")
+            post_results = processor.process_batch(
+                batch_requests=post_requests,
+                batch_path=batch_dir / f"post_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+            )
+            
+            # Step 6: Update and save final structure
+            logger.info("Updating with generated posts...")
+            final_structure = processor.update_with_generated_posts(
+                saved_structure=structure,
+                batch_results=post_results,
+                batch_id=post_results.id
+            )
+            
+            save_json(final_structure, output_path)
+            logger.info(f"Generation completed. Results saved to {output_path}")
+        else:
+            logger.info("No posts to generate. All posts may already be complete.")
+
+    except Exception as e:
+        logger.error("Failed to generate posts:", exc_info=True)
+        raise
+
+if __name__ == "__main__":
+    main()

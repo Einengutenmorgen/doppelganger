@@ -1,0 +1,373 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import sys
+import logging
+import json
+from typing import List, Dict
+from datetime import datetime
+import time
+from dataclasses import dataclass, asdict
+from dotenv import load_dotenv
+from openai import OpenAI
+from tenacity import retry, stop_after_attempt, wait_exponential
+import random
+
+
+# Add the project root directory to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(project_root)
+
+
+# Import existing components
+from research_case.analyzers.persona_analysis import PersonaAnalyzer, ExtendedPersonaAnalyzer
+from research_case.analyzers.llm_client import LLMClient
+from research_case.analyzers.persona_prompt import PERSONA_FIELDS, PERSONA_ANALYSIS_PROMPT
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+@dataclass
+class BatchRequest:
+    custom_id: str
+    user_id: str
+    prompt: str
+
+def load_and_sample_users(input_path: str, max_personas: int) -> dict:
+    """
+    Load user data from JSON and sample up to max_personas users.
+    Uses chunked reading to handle large files.
+    """
+    try:
+        # Read file in chunks
+        logger.info(f"Loading data from {input_path}")
+        chunk_size = 1024 * 1024  # 1MB chunks
+        json_data = ""
+        
+        with open(input_path, 'r') as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                json_data += chunk
+        
+        logger.info("Parsing JSON data...")
+        all_users = json.loads(json_data)
+        logger.info(f"Successfully loaded {len(all_users)} users")
+            
+        if max_personas and len(all_users) > max_personas:
+            # Sort users by tweet count and take top N
+            sorted_users = sorted(
+                all_users.items(), 
+                key=lambda x: len(x[1]), 
+                reverse=True
+            )
+            # Take top max_personas users
+            sampled_users = dict(sorted_users[:max_personas])
+            logger.info(f"Selected top {max_personas} users by tweet count")
+            # Log some stats about the selection
+            avg_tweets = sum(len(tweets) for tweets in sampled_users.values()) / len(sampled_users)
+            logger.info(f"Average tweets per selected user: {avg_tweets:.2f}")
+            
+            return sampled_users
+        
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading user data: {e}")
+        raise
+
+class BatchPersonaAnalyzer:
+    """Handles batch processing of persona analysis requests."""
+    
+    def __init__(self, api_key: str, batch_size: int = 50, use_random_fields: bool = False):
+        self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        self.batch_size = min(batch_size, 50)
+        self.use_random_fields = use_random_fields
+        self.user_fields = {}
+        
+        # Initialize appropriate analyzer based on random fields setting
+        llm_client = LLMClient(api_key=api_key)
+        if use_random_fields:
+            self.analyzer = ExtendedPersonaAnalyzer(llm_client)
+        else:
+            self.analyzer = PersonaAnalyzer(llm_client)
+    
+    def prepare_batch_requests(
+        self, 
+        users_data: Dict, 
+        conversations_data: Dict = None,
+        n_posts: int = 100,
+        n_conversations: int = 10,
+        use_random_fields: bool = False,
+        num_fields: int = 5
+    ) -> List[BatchRequest]:
+        batch_requests = []
+        
+        for user_id, user_posts in users_data.items():
+            user_conversations = []
+            if conversations_data:
+                user_conversations = self.analyzer.get_user_conversations(
+                    user_id, 
+                    conversations_data, 
+                    n_conversations
+                )
+            
+            if use_random_fields:
+                prompt, selected_fields = self.analyzer.create_persona_prompt(
+                    posts=user_posts[:n_posts],
+                    conversations=user_conversations,
+                    n_posts=n_posts,
+                    use_random_fields=True,
+                    num_fields=num_fields
+                )
+                # Store selected fields for this user
+                self.user_fields[user_id] = selected_fields
+            else:
+                prompt = self.analyzer.create_persona_prompt(
+                    posts=user_posts[:n_posts],
+                    conversations=user_conversations,
+                    n_posts=n_posts
+                )
+            
+            batch_requests.append(BatchRequest(
+                custom_id=f"user_{user_id}",
+                user_id=user_id,
+                prompt=prompt
+            ))
+            
+        return batch_requests
+
+
+    def create_batch_file(self, requests: List[BatchRequest], output_path: str) -> str:
+        """Create JSONL file for batch processing."""
+        batch_file = os.path.join(output_path, f"batch_input_{int(time.time())}.jsonl")
+        os.makedirs(os.path.dirname(batch_file), exist_ok=True)
+        i=0
+        with open(batch_file, 'w') as f:
+            for req in requests:
+                batch_entry = {
+                    "custom_id": req.custom_id,
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        
+                        "model": "gpt-4o",
+                        "messages": [
+                        {
+                            "role": "system",
+                            "content": "Task: Analyze the following social media posts to produce a detailed character description of the user."
+                        },
+                        {
+                            "role": "user",
+                            "content": req.prompt
+                        }
+                    ],
+                    "max_tokens": 1000,
+                    "response_format": {"type": "json_object"}
+                    }    
+                }
+                f.write(json.dumps(batch_entry) + '\n')
+                i=i+1
+        
+        return batch_file
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+    def process_batch(self, batch_file: str, output_path: str, use_random_fields: bool = False) -> Dict:
+        """Execute batch processing and handle results."""
+        try:
+            # Upload batch file
+            batch_input_file = self.client.files.create(
+                file=open(batch_file, "rb"),
+                purpose="batch"
+            )
+            
+            # Create batch
+            batch = self.client.batches.create(
+                input_file_id=batch_input_file.id,
+                endpoint="/v1/chat/completions",
+                completion_window="24h"
+            )
+            
+            # Monitor batch status
+            while True:
+                status = self.client.batches.retrieve(batch.id)
+                if status.status == "completed":
+                    break
+                elif status.status in ["failed", "expired", "cancelled"]:
+                    raise Exception(f"Batch failed with status: {status.status}")
+                time.sleep(30)
+            
+            # Retrieve results
+            results = self.client.files.content(status.output_file_id)
+            return self.parse_batch_results(results.text, use_random_fields)
+            
+        except Exception as e:
+            logger.error(f"Batch processing failed: {e}")
+            raise
+
+    def parse_batch_results(self, results_text: str, use_random_fields: bool = False) -> Dict:
+        """Parse batch results and map them back to user IDs."""
+        persona_results = {}
+        
+        for line in results_text.strip().split('\n'):
+            result = json.loads(line)
+            user_id = result['custom_id'].replace('user_', '')
+            
+            if result['response']['status_code'] == 200:
+                response_content = result['response']['body']['choices'][0]['message']['content']
+                try:
+                    if use_random_fields:
+                        # Use the stored fields for this user
+                        fields = self.user_fields.get(user_id)
+                        if not fields:
+                            logger.error(f"No stored fields found for user {user_id}")
+                            fields = PERSONA_FIELDS[:5]  # Fallback to first 5 fields
+                        parsed_content = self.analyzer.parse_analysis(response_content, fields)
+                    else:
+                        parsed_content = self.analyzer.parse_analysis(response_content, PERSONA_FIELDS)
+                    persona_results[user_id] = parsed_content
+                except Exception as e:
+                    logger.error(f"Failed to parse result for user {user_id}: {e}")
+                    persona_results[user_id] = {"error": str(e)}
+            else:
+                persona_results[user_id] = {"error": "API request failed"}
+        
+        return persona_results
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Batch process persona analysis from social media posts and conversations."
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        required=True,
+        help="Path to the input JSON file containing user posts."
+    )
+    parser.add_argument(
+        "--conversations",
+        type=str,
+        required=False,
+        help="Path to the optional JSON file containing user conversations."
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=False,
+        help="Path to save results. Defaults to 'experiment_name/personas.json'."
+    )
+    parser.add_argument(
+        "--n-posts",
+        type=int,
+        default=100,
+        help="Number of posts per user to include in analysis (default: 5)."
+    )
+    parser.add_argument(
+        "--n-conversations",
+        type=int,
+        default=5,
+        help="Number of conversations per user to include (default: 5)."
+    )
+    parser.add_argument(
+        "--max-personas",
+        type=int,
+        default=50,
+        help="Maximum number of personas to create."
+    )
+    parser.add_argument(
+        "--experiment-name",
+        type=str,
+        required=True,
+        help="Name of the experiment (used for output directory)"
+    )
+    parser.add_argument(
+        "--use-random-fields",
+        action="store_true",
+        help="Use random fields for persona analysis"
+    )
+    parser.add_argument(
+        "--num-fields",
+        type=int,
+        default=5,
+        help="Number of random fields to use (only if use-random-fields is set)"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Number of requests per batch (max 50)"
+    )
+    
+    args = parser.parse_args()
+    
+    load_dotenv()
+    
+    # Add this at the start of main():
+    # Verify input file
+    if not os.path.exists(args.input):
+        logger.error(f"Input file not found: {args.input}")
+        sys.exit(1)
+        
+    # Check file size
+    file_size = os.path.getsize(args.input)
+    logger.info(f"Input file size: {file_size / (1024*1024):.2f} MB")
+    
+    # Ensure output directory exists
+    # Set up output path
+    output_path = args.output or os.path.join(args.experiment_name, "personas.json")
+    os.makedirs(os.path.dirname(args.output) if args.output else args.experiment_name, exist_ok=True)
+
+    
+
+    try:
+        # Load and sample users if needed
+        users_data = load_and_sample_users(args.input, args.max_personas)
+        
+        # Load conversations if provided
+        conversations_data = None
+        if args.conversations and os.path.exists(args.conversations):
+            with open(args.conversations, 'r') as f:
+                conversations_data = json.load(f)
+        
+        # Initialize batch analyzer
+        batch_analyzer = BatchPersonaAnalyzer(
+            api_key=os.getenv('OPENAI_API_KEY'),
+            batch_size=args.batch_size,
+            use_random_fields=args.use_random_fields
+        )
+        
+        # Prepare batch requests
+        requests = batch_analyzer.prepare_batch_requests(
+            users_data=users_data,
+            conversations_data=conversations_data,
+            n_posts=args.n_posts,
+            n_conversations=args.n_conversations,
+            use_random_fields=args.use_random_fields,
+            num_fields=args.num_fields
+        )
+        
+        # Create batch file
+        batch_file = batch_analyzer.create_batch_file(requests, args.experiment_name)
+        
+        # Process batch and get results
+        results = batch_analyzer.process_batch(
+            batch_file, 
+            args.experiment_name,
+            use_random_fields=args.use_random_fields
+        )
+        
+        # Save results
+        with open(output_path, 'w') as f:
+            json.dump(results, f, indent=4)
+            
+        logger.info(f"Batch processing completed. Results saved to {output_path}")
+        
+    except Exception as e:
+        logger.error(f"Batch processing failed: {e}")
+        raise
+
+if __name__ == "__main__":
+    main()

@@ -96,6 +96,8 @@ JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤
         except Exception as e:
             logger.error(f"Error generating post: {e}")
             raise
+    
+    
 
 class StimulusGenerator:
     """Generates generic stimuli from original posts for testing generation"""
