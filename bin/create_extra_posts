@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+
+import json
+import logging
+from datetime import datetime, timezone
+from typing import Dict
+from dataclasses import dataclass
+import os
+from pathlib import Path
+import argparse
+
+from research_case.analyzers.llm_client import LLMClient
+from research_case.generators.post_generator import PostGenerator, GenerationPrompt, StimulusGenerator
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def get_default_output_path(input_path: str) -> str:
+    """
+    Generate default output path based on input path.
+    Places output file in same directory as input with modified name.
+    
+    Args:
+        input_path: Path to input file
+        
+    Returns:
+        Path to output file
+    """
+    input_dir = os.path.dirname(os.path.abspath(input_path))
+    return os.path.join(input_dir, 'generierte_posts_multi_varianten.json')
+
+def save_progress(data: Dict, output_file: str, backup: bool = True):
+    """
+    Save current progress with optional backup of previous version.
+    
+    Args:
+        data: Current data to save
+        output_file: Path to save file
+        backup: Whether to create backup of previous version
+    """
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+    
+    # Create backup if requested and file exists
+    if backup and os.path.exists(output_file):
+        backup_path = f"{output_file}.backup"
+        os.replace(output_file, backup_path)
+        logger.info(f"Created backup at {backup_path}")
+    
+    # Save current progress
+    with open(output_file, 'w') as f:
+        json.dump(data, f, indent=4)
+    logger.info(f"Progress saved to {output_file}")
+
+def load_progress(input_file: str, output_file: str) -> tuple[Dict, int]:
+    """
+    Load existing progress or start fresh.
+    
+    Returns:
+        Tuple of (data dict, start_index for processing)
+    """
+    # If output file exists, load it and find where to resume
+    if os.path.exists(output_file):
+        with open(output_file, 'r') as f:
+            data = json.load(f)
+            
+        # Find first post without variations
+        for i, post in enumerate(data['generated_posts']):
+            if 'generated_text_01' not in post:
+                logger.info(f"Resuming from post {i}")
+                return data, i
+                
+        logger.info("All posts already processed")
+        return data, len(data['generated_posts'])
+    
+    # Otherwise start fresh with input data
+    with open(input_file, 'r') as f:
+        data = json.load(f)
+    return data, 0
+
+def generate_additional_posts(
+    input_file: str,
+    output_file: str,
+    llm_client: LLMClient,
+    variations: int = 4,
+    save_frequency: int = 5  # Save every N posts
+):
+    """
+    Generate additional post variations based on existing generated posts.
+    Saves progress incrementally.
+    
+    Args:
+        input_file: Path to input JSON file with original generated posts
+        output_file: Path to save updated JSON with additional variations
+        llm_client: LLMClient instance for generation
+        variations: Number of additional variations to generate (default 4)
+        save_frequency: How often to save progress (in number of posts)
+    """
+    # Initialize generators
+    post_generator = PostGenerator(llm_client)
+    
+    try:
+        # Load existing progress or start fresh
+        data, start_index = load_progress(input_file, output_file)
+        total_posts = len(data['generated_posts'])
+        
+        # Skip if already complete
+        if start_index >= total_posts:
+            logger.info("All posts already processed")
+            return
+            
+        # Generate additional variations for remaining posts
+        for i in range(start_index, total_posts):
+            post = data['generated_posts'][i]
+            logger.info(f"Processing post {i+1}/{total_posts}: {post['generation_id']}")
+            
+            # Extract persona fields
+            persona = {k.replace('persona_', ''): v for k, v in post.items() 
+                      if k.startswith('persona_')}
+            
+            # Create generation prompt
+            prompt = GenerationPrompt(
+                persona=persona,
+                stimulus=post['stimulus']
+            )
+            
+            # Generate variations
+            timestamp = datetime.now(timezone.utc).isoformat()
+            for v in range(variations):
+                variation_key = f'generated_text_{str(v+1).zfill(2)}'
+                try:
+                    generated_text = post_generator.generate_post(prompt)
+                    post[variation_key] = generated_text
+                    post[f'{variation_key}_timestamp'] = timestamp
+                except Exception as e:
+                    logger.error(f"Error generating variation {v+1} for {post['generation_id']}: {e}")
+                    post[variation_key] = None
+                    post[f'{variation_key}_timestamp'] = timestamp
+            
+            # Save progress periodically
+            if (i + 1) % save_frequency == 0:
+                data['metadata']['generation_timestamp'] = datetime.now(timezone.utc).isoformat()
+                data['metadata']['variations_per_post'] = variations
+                data['metadata']['processed_posts'] = i + 1
+                save_progress(data, output_file)
+        
+        # Final save
+        data['metadata']['generation_timestamp'] = datetime.now(timezone.utc).isoformat()
+        data['metadata']['variations_per_post'] = variations
+        data['metadata']['processed_posts'] = total_posts
+        save_progress(data, output_file)
+            
+        logger.info("Generation complete!")
+        
+    except Exception as e:
+        logger.error("Failed to generate additional posts:")
+        logger.error(str(e))
+        # Save progress on error
+        if 'data' in locals():
+            logger.info("Saving progress before exit...")
+            data['metadata']['error'] = str(e)
+            save_progress(data, output_file)
+        raise
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Generate additional variations of posts from an existing generation output."
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        help="Path to input JSON file containing generated posts"
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        help="Path to save output JSON file. Defaults to 'generierte_posts_multi_varianten.json' in the same directory as input",
+        default=None
+    )
+    parser.add_argument(
+        "--variations",
+        "-v",
+        type=int,
+        default=4,
+        help="Number of variations to generate per post (default: 4)"
+    )
+    parser.add_argument(
+        "--save-frequency",
+        "-s",
+        type=int,
+        default=5,
+        help="Save progress every N posts (default: 5)"
+    )
+    args = parser.parse_args()
+    
+    # Set output path if not provided
+    output_path = args.output if args.output else get_default_output_path(args.input)
+    
+    # Load environment variables
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    # Initialize LLM client
+    llm_client = LLMClient(api_key=os.getenv('OPENAI_API_KEY'))
+    
+    # Generate additional posts
+    generate_additional_posts(
+        input_file=args.input,
+        output_file=output_path,
+        llm_client=llm_client,
+        variations=args.variations,
+        save_frequency=args.save_frequency
+    )
+
+if __name__ == "__main__":
+    main()

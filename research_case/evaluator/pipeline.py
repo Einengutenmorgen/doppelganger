@@ -34,12 +34,12 @@ class EvaluationPipeline:
             self._similarity_analyzer = SimilarityAnalyzer()
         return self._similarity_analyzer
     
-    @property
-    def llm_judge(self):
-        """Lazy load LLMJudge."""
-        if self._llm_judge is None:
-            self._llm_judge = LLMJudge()
-        return self._llm_judge
+    # @property
+    # def llm_judge(self):
+    #     """Lazy load LLMJudge."""
+    #     if self._llm_judge is None:
+    #         self._llm_judge = LLMJudge()
+    #     return self._llm_judge
         
     def evaluate_post(self, original_post: Dict, generated_post: Dict, persona: Dict) -> Dict:
         """
@@ -65,18 +65,18 @@ class EvaluationPipeline:
                 regenerated=generated_post['generated_text'],
             )
             
-            # LLM evaluation
-            llm_evaluation = self.llm_judge.evaluate_post(
-                original_post=original_post['full_text'],
-                generated_post=generated_post['generated_text'],
-                persona=persona,
-                stimulus=generated_post['stimulus']
-            )
+            # # LLM evaluation
+            # llm_evaluation = self.llm_judge.evaluate_post(
+            #     original_post=original_post['full_text'],
+            #     generated_post=generated_post['generated_text'],
+            #     persona=persona,
+            #     stimulus=generated_post['stimulus']
+            # )
             
             return {
                 'rouge_scores': rouge_scores,
                 'similarity_scores': similarity_scores,
-                'llm_evaluation': llm_evaluation,
+                #'llm_evaluation': llm_evaluation,
                 'metadata': {
                     'original_id': original_post.get('tweet_id'),
                     'generated_id': generated_post.get('generation_id'),
@@ -134,7 +134,9 @@ class EvaluationPipeline:
         """Calculate aggregate statistics for all metrics."""
         try:
             # Filter out any failed evaluations that might have empty dictionaries
-            valid_evaluations = [e for e in evaluations if e and all(k in e for k in ["rouge_scores", "llm_evaluation", "similarity_scores"])]
+#            valid_evaluations = [e for e in evaluations if e and all(k in e for k in ["rouge_scores", "llm_evaluation", "similarity_scores"])]
+
+            valid_evaluations = [e for e in evaluations if e and all(k in e for k in ["rouge_scores",  "similarity_scores"])]
             
             if not valid_evaluations:
                 logger.warning("No valid evaluations to aggregate")
@@ -142,7 +144,7 @@ class EvaluationPipeline:
 
             return {
                 "rouge": self._aggregate_rouge_scores([e["rouge_scores"] for e in valid_evaluations]),
-                "llm_evaluation": self._aggregate_llm_scores([e["llm_evaluation"] for e in valid_evaluations]),
+                #"llm_evaluation": self._aggregate_llm_scores([e["llm_evaluation"] for e in valid_evaluations]),
                 'similarity_scores': {'mean': sum(e['similarity_scores'] for e in evaluations) / len(evaluations)}
                 }
         except Exception as e:
@@ -155,7 +157,7 @@ class EvaluationPipeline:
         return {
             'rouge_scores': {},
             'similarity_scores': {},
-            'llm_evaluation': self.llm_judge._get_default_evaluation(),
+            #'llm_evaluation': self.llm_judge._get_default_evaluation(),
             'metadata': {
                 'error': 'Evaluation failed',
                 'timestamp': datetime.now(timezone.utc).isoformat()
@@ -211,32 +213,32 @@ class EvaluationPipeline:
             return {}
 
     
-    @staticmethod
-    def _aggregate_llm_scores(scores: List[Dict]) -> Dict:
-        """Aggregate LLM evaluation scores across multiple evaluations."""
-        if not scores:
-            return {}
+    # @staticmethod
+    # def _aggregate_llm_scores(scores: List[Dict]) -> Dict:
+    #     """Aggregate LLM evaluation scores across multiple evaluations."""
+    #     if not scores:
+    #         return {}
                 
-        try:
-            aggregated = {
-                "authenticity": {
-                    "mean": sum(s["authenticity"]["score"] for s in scores) / len(scores),
-                    "std": 0.0
-                },
-                "style_consistency": {
-                    "mean": sum(s["style_consistency"]["score"] for s in scores) / len(scores),
-                    "std": 0.0
-                }
-            }
+    #     try:
+    #         aggregated = {
+    #             "authenticity": {
+    #                 "mean": sum(s["authenticity"]["score"] for s in scores) / len(scores),
+    #                 "std": 0.0
+    #             },
+    #             "style_consistency": {
+    #                 "mean": sum(s["style_consistency"]["score"] for s in scores) / len(scores),
+    #                 "std": 0.0
+    #             }
+    #         }
 
-            # Count matching_intent true/false ratio
-            matching_intent_count = sum(1 for s in scores if s.get("matching_intent", False))
-            aggregated["matching_intent_ratio"] = matching_intent_count / len(scores)
+    #         # Count matching_intent true/false ratio
+    #         matching_intent_count = sum(1 for s in scores if s.get("matching_intent", False))
+    #         aggregated["matching_intent_ratio"] = matching_intent_count / len(scores)
 
-            return aggregated
-        except KeyError as e:
-            logger.error(f"Missing key in LLM scores: {e}")
-            return {}
-        except Exception as e:
-            logger.error(f"Error aggregating LLM scores: {e}")
-            return {}
+    #         return aggregated
+    #     except KeyError as e:
+    #         logger.error(f"Missing key in LLM scores: {e}")
+    #         return {}
+    #     except Exception as e:
+    #         logger.error(f"Error aggregating LLM scores: {e}")
+    #         return {}
