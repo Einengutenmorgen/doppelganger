@@ -19,7 +19,7 @@ class LLMJudge:
     """LLM-based judge for evaluating generated posts quality and authenticity."""
     
     def __init__(self, 
-                client_type: str = "openai",
+                client_type: str = "gemini",
                 model_name: str = None):
         """
         Initialize LLM judge with specified client type.

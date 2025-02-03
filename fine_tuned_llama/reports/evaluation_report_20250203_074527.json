@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-02-03T07:45:27.548912",
+  "total_posts_evaluated": 1000,
+  "metrics": {
+    "rouge_scores": {
+      "rouge1_f1": 0.31431715852363373
+    },
+    "similarity_scores": {
+      "mean": 0.7815688185691834
+    },
+    "llm_evaluation": {
+      "authenticity": 6.03,
+      "style_consistency": 6.837
+    }
+  }
+}

@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Evaluate generated social media posts."""
+
+import argparse
+import json
+import logging
+import os
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, List
+
+# Import existing components
+from research_case.evaluator.rouge_evaluator import RougeEvaluator
+from research_case.evaluator.similarity_analyzer import SimilarityAnalyzer
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+class ModifiedEvaluationPipeline:
+    """Pipeline for evaluating generated social media posts with multiple variations."""
+    
+    def __init__(self):
+        """Initialize evaluation components."""
+        self._rouge_evaluator = None
+        self._similarity_analyzer = None
+    
+    @property
+    def rouge_evaluator(self):
+        """Lazy load RougeEvaluator."""
+        if self._rouge_evaluator is None:
+            self._rouge_evaluator = RougeEvaluator()
+        return self._rouge_evaluator
+    
+    @property
+    def similarity_analyzer(self):
+        """Lazy load SimilarityAnalyzer."""
+        if self._similarity_analyzer is None:
+            self._similarity_analyzer = SimilarityAnalyzer()
+        return self._similarity_analyzer
+
+    def evaluate_generated_text(self, original_text: str, generated_text: str) -> Dict:
+        """Evaluate a single generated text variant."""
+        try:
+
+            rouge_scores = self.rouge_evaluator.calculate_scores(
+                original_text,
+                generated_text
+            )
+            
+            similarity_score = self.similarity_analyzer.analyze_similarity(
+                original=original_text,
+                regenerated=generated_text
+            )
+            
+            return {
+                'rouge_scores': rouge_scores,
+                'similarity_score': similarity_score
+            }
+        except Exception as e:
+            logger.error(f"Error evaluating generated text: {e}")
+            return self._get_default_evaluation()
+
+    def evaluate_post(self, post_data: Dict) -> Dict:
+        """Evaluate all generated text variants for a single post."""
+        try:
+            original_text = post_data["original_text"]
+            
+            # Find all generated text variants
+            generated_variants = {
+                k: v for k, v in post_data.items() 
+                if k.startswith("generated_text")
+            }
+            
+            # Evaluate each variant
+            variant_evaluations = {}
+            for variant_key, variant_text in generated_variants.items():
+                variant_evaluations[variant_key] = self.evaluate_generated_text(
+                    original_text,
+                    variant_text
+                )
+            
+            # Calculate averages
+            avg_rouge_scores = self._average_rouge_scores([
+                eval_data['rouge_scores'] 
+                for eval_data in variant_evaluations.values()
+            ])
+            
+            avg_similarity_score = sum(
+                eval_data['similarity_score'] 
+                for eval_data in variant_evaluations.values()
+            ) / len(variant_evaluations)
+            
+            return {
+                'variant_evaluations': variant_evaluations,
+                'average_metrics': {
+                    'rouge_scores': avg_rouge_scores,
+                    'similarity_score': avg_similarity_score
+                },
+                'metadata': {
+                    'original_id': post_data.get('original_post_id'),
+                    'user_id': post_data.get('user_id'),
+                    'generation_id': post_data.get('generation_id'),
+                    'timestamp': post_data.get('generation_timestamp')
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error evaluating post: {e}")
+            return self._get_default_evaluation()
+
+    def evaluate_batch(self, data: Dict) -> Dict:
+        """Evaluate all posts in the dataset."""
+        posts = data.get('generated_posts', [])
+        
+        evaluations = []
+        for post in posts:
+            try:
+                evaluation = self.evaluate_post(post)
+                evaluations.append(evaluation)
+            except Exception as e:
+                logger.error(f"Error evaluating post {post.get('generation_id')}: {e}")
+                
+        return {
+            'individual_evaluations': evaluations,
+            'aggregate_metrics': self._calculate_aggregate_metrics(evaluations),
+            'metadata': {
+                'total_evaluated': len(evaluations),
+                'evaluation_timestamp': datetime.now(timezone.utc).isoformat(),
+                'original_metadata': data.get('metadata', {})
+            }
+        }
+
+    def _average_rouge_scores(self, rouge_scores_list: List[Dict]) -> Dict:
+        """Calculate average ROUGE scores across variants."""
+        if not rouge_scores_list:
+            return {}
+            
+        metrics = rouge_scores_list[0].keys()
+        avg_scores = {}
+        
+        for metric in metrics:
+            avg_scores[metric] = {
+                'precision': sum(s[metric]['precision'] for s in rouge_scores_list) / len(rouge_scores_list),
+                'recall': sum(s[metric]['recall'] for s in rouge_scores_list) / len(rouge_scores_list),
+                'fmeasure': sum(s[metric]['fmeasure'] for s in rouge_scores_list) / len(rouge_scores_list)
+            }
+        
+        return avg_scores
+
+    def _calculate_aggregate_metrics(self, evaluations: List[Dict]) -> Dict:
+        """Calculate aggregate statistics across all posts."""
+        if not evaluations:
+            return {}
+
+        all_rouge_scores = []
+        all_similarity_scores = []
+
+        for eval_data in evaluations:
+            avg_metrics = eval_data.get('average_metrics', {})
+            if avg_metrics:
+                all_rouge_scores.append(avg_metrics.get('rouge_scores', {}))
+                all_similarity_scores.append(avg_metrics.get('similarity_score', 0.0))
+
+        return {
+            'rouge_scores': self._average_rouge_scores(all_rouge_scores),
+            'similarity_score': {
+                'mean': sum(all_similarity_scores) / len(all_similarity_scores) if all_similarity_scores else 0.0,
+                'min': min(all_similarity_scores) if all_similarity_scores else 0.0,
+                'max': max(all_similarity_scores) if all_similarity_scores else 0.0
+            }
+        }
+
+    def _get_default_evaluation(self) -> Dict:
+        """Return default evaluation if processing fails."""
+        return {
+            'rouge_scores': {},
+            'similarity_score': 0.0
+        }
+
+    def save_results(self, results: Dict, output_path: str):
+        """Save evaluation results to JSON file."""
+        try:
+            with open(output_path, 'w') as f:
+                json.dump(results, f, indent=2)
+            logger.info(f"Results saved to {output_path}")
+        except Exception as e:
+            logger.error(f"Error saving results: {e}")
+
+def setup_args() -> argparse.Namespace:
+    """Set up command line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Evaluate generated social media posts.'
+    )
+    parser.add_argument(
+        '--input',
+        type=str,
+        required=True,
+        help='Path to the JSON file containing generated posts'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='evaluation_results',
+        help='Directory to save evaluation results'
+    )
+    parser.add_argument(
+        '--log-level',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default='INFO',
+        help='Set the logging level'
+    )
+    
+    return parser.parse_args()
+
+def main():
+    """Main execution function."""
+    args = setup_args()
+    logging.getLogger().setLevel(getattr(logging, args.log_level))
+    
+    try:
+        # Load generated posts
+        logger.info(f"Loading generated posts from {args.input}")
+        with open(args.input, 'r') as f:
+            data = json.load(f)
+        
+        # Initialize pipeline
+        pipeline = ModifiedEvaluationPipeline()
+        
+        # Run evaluation
+        logger.info("Starting evaluation pipeline")
+        results = pipeline.evaluate_batch(data)
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(args.output_dir, exist_ok=True)
+        
+        # Save results
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(args.output_dir, f"eval_results_{timestamp}.json")
+        pipeline.save_results(results, output_path)
+        
+        logger.info(f"Evaluation complete. Results saved to {output_path}")
+        
+    except Exception as e:
+        logger.error(f"Error running evaluation: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
