@@ -2,35 +2,58 @@ import json
 import logging
 import os
 from typing import Dict, List, Union
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 from openai import OpenAI
 
 from research_case.analyzers.llm_client import LLMClient
+from research_case.LLMclients.llm_client_google import GeminiLLMClient
 
 
 logger = logging.getLogger(__name__)
 
+    
 class LLMJudge:
     """LLM-based judge for evaluating generated posts quality and authenticity."""
     
-    def __init__(self,llm_client: LLMClient = LLMClient, model_name: str = "gpt-4o"):
+    def __init__(self, 
+                client_type: str = "openai",
+                model_name: str = None):
         """
-        Initialize LLM judge.
+        Initialize LLM judge with specified client type.
         
         Args:
-            model_name: Name of the OpenAI model to use
+            client_type: Type of LLM client to use ("openai" or "gemini")
+            model_name: Name of the model to use (optional)
         """
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set.")
-        self.client = OpenAI(api_key=api_key)
-        self.model_name = model_name
-        self.llm_client = llm_client(api_key)
+        # Get appropriate API key based on client type
+        if client_type == "openai":
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY environment variable is not set.")
+            self.llm_client = OpenAI(api_key=api_key)
+            self.model_name = model_name or "gpt-4"
+            
+        elif client_type == "gemini":
+            api_key = os.getenv('GOOGLE_API_KEY')
+            if not api_key:
+                raise ValueError("GOOGLE_API_KEY environment variable is not set.")
+            self.llm_client = GeminiLLMClient(api_key=api_key)
+            # Note: model_name is handled internally for Gemini client
+            
+        else:
+            raise ValueError(f"Unsupported client_type: {client_type}. Use 'openai' or 'gemini'.")
+        
+        self.client_type = client_type
+        logger.info(f"Initialized LLMJudge with {client_type} client")
     
     def evaluate_post(self, 
-                      original_post: str, 
-                      generated_post: str, 
-                      persona: Dict[str, str],
-                      stimulus: str) -> Dict:
+                    original_post: str, 
+                    generated_post: str, 
+                    persona: Dict[str, str],
+                    stimulus: str) -> Dict:
         """
         Evaluate a generated post using LLM judgment.
         
@@ -60,7 +83,7 @@ class LLMJudge:
             logger.error("Invalid input: stimulus must be a non-empty string.")
             return self._get_default_evaluation()
 
-        prompt =  self._create_evaluation_prompt(
+        prompt = self._create_evaluation_prompt(
             original_post,
             generated_post,
             persona,
@@ -70,52 +93,78 @@ class LLMJudge:
         logger.debug(f"Prompt: {prompt}")
 
         try:
-            response =  self.llm_client.call(
-                prompt= prompt,
-                temperature=0.1,
-                max_tokens=500
-            )
-            logger.info("Received response from LLM.")
+            # Handle different client types
+            if self.client_type == "openai":
+                response = self.llm_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                    max_tokens=500
+                )
+                response_text = response.choices[0].message.content
+            else:  # gemini
+                response_text = self.llm_client.call(
+                    prompt=prompt,
+                    temperature=0.1,
+                    max_tokens=500
+                )
             
-            logger.debug(f'Raw Response: {response}')
-            #response_content = json.loads(response)
-            return self.parse_analysis(response)
-            #return self.response_content
-        except TypeError as te:
-            logger.error(f"TypeError encountered: {te}")
-            return self._get_default_evaluation()
-        
+            logger.info("Received response from LLM.")
+            logger.debug(f'Raw Response: {response_text}')
+            
+            return self.parse_analysis(response_text)
+            
         except Exception as e:
             logger.error(f"Error in LLM evaluation: {e}")
-            
             return self._get_default_evaluation()
 
-
     def _create_evaluation_prompt(self,
-                                  original_post: str,
-                                  generated_post: str,
-                                  persona: Dict[str, str],
-                                  stimulus: str) -> str:
+                                original_post: str,
+                                generated_post: str,
+                                persona: Dict[str, str],
+                                stimulus: str) -> str:
         """Create the evaluation prompt for the LLM."""
-        return f"""Evaluate the generated social media post by comparing it to the original post based on the following criteria:
+        return f"""You are an expert evaluator assessing the quality of an AI-generated social media post. Your task is to compare the generated post with the original and provide a structured assessment based on the following criteria:
 
-1. **Authenticity (1-10)**: How well does the generated post match the user’s persona? This includes tone, voice, and personal nuances.
-2. **Style Consistency (1-10)**: How closely does the generated post maintain the style and structure of the original post?
-3. **Matching Intent (Yes/No)**: Does the generated post align with the intent and message of the original post?
+1. **Authenticity (1-10):**  
+   - Does the generated post reflect the unique tone, voice, and personality of the original author?  
+   - Does it maintain their typical word choices, phrasing, and emotional nuances?  
+   - Justify the score with a brief explanation.  
 
+2. **Style Consistency (1-10):**  
+   - How well does the generated post match the writing style of the original?  
+   - Does it retain the sentence structure, rhythm, and distinctive linguistic patterns (idiolect/sociolect)?  
+   - Provide an explanation for the score.  
 
-original social media post: {original_post}
-generated social media post:{generated_post}
+3. **Intent Matching (True/False):**  
+   - Does the generated post preserve the key message, emotional impact, and overall intent of the original post?  
+   - If False, briefly explain the discrepancies.  
 
+**Original Post:**  
+{original_post}
 
-Provide the evaluation in the following JSON format:
+**Generated Post:**  
+{generated_post}
+
+**Persona Information:**
+{json.dumps(persona, indent=2)}
+
+**Stimulus:**
+{stimulus}
+
+Return the evaluation in the following structured JSON format:
 {{
-    "authenticity": {{"score": 1-10, "explanation": "brief explanation of the score"}},
-    "style_consistency": {{"score": 1-10, "explanation": "brief explanation of the score"}},
-    "matching_intent": true/false,
-    "overall_feedback": "brief overall assessment of the generated post"
-}}
-"""
+    "authenticity": {{
+        "score": <integer 1-10>,
+        "explanation": "<brief explanation>"
+    }},
+    "style_consistency": {{
+        "score": <integer 1-10>,
+        "explanation": "<brief explanation>"
+    }},
+    "matching_intent": <true/false>,
+    "overall_feedback": "<brief assessment summarizing the strengths and weaknesses of the generated post>"
+}}"""
 
     def _get_default_evaluation(self) -> Dict:
         """Return default evaluation if LLM call fails."""
