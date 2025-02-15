@@ -6,9 +6,7 @@ projectname*
 test
 results
 logs/
-notebooks/
 03_open_description
-fine_tune03
 fine_tune04
 fine_tune02
 fine_tune
