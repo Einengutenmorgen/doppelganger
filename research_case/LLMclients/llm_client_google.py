@@ -63,21 +63,50 @@ class GeminiLLMClient(BaseLLMClient):
                 'top_k': 40,
             }
 
-            # Unlike OpenAI, Gemini doesn't use a "system" role in the same way
-            # We'll prepend any system-like instructions to the user prompt
-            
+            # Format the prompt to ensure we get a JSON response when needed
             formatted_prompt = prompt
             if response_format and response_format.get("type") == "json_object":
-                formatted_prompt = "Please respond with a valid JSON object.\n\n" + prompt
+                # Add explicit instructions for JSON formatting
+                formatted_prompt = (
+                    "You must respond with a valid, properly formatted JSON object and nothing else. "
+                    "Do not include markdown formatting, code blocks, or any text outside the JSON object. "
+                    "Ensure all keys are properly quoted and all values are valid JSON.\n\n"
+                    + prompt
+                )
+                
+                # Log the modified prompt
+                logger.debug(f"Modified prompt for JSON response: {formatted_prompt[:100]}...")
 
-            # Generate the response - Gemini accepts simpler input format
+            # Generate the response
+            logger.info("Sending request to Gemini API")
             response = self.model.generate_content(
                 formatted_prompt,
                 generation_config=generation_config
             )
 
             # Check if generation was successful
-            if response and response.text:
+            if response and hasattr(response, 'text') and response.text:
+                # Log a snippet of the response for debugging
+                logger.debug(f"Received response from Gemini: {response.text[:100]}...")
+                
+                # Clean up response if JSON was requested
+                if response_format and response_format.get("type") == "json_object":
+                    # Try to extract JSON if wrapped in code blocks
+                    text = response.text
+                    
+                    # Remove markdown code blocks if present
+                    import re
+                    json_block_match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
+                    if json_block_match:
+                        logger.info("Extracted JSON from code block")
+                        return json_block_match.group(1).strip()
+                    
+                    # Remove any non-JSON text before or after
+                    json_match = re.search(r'(\{.*\})', text, re.DOTALL)
+                    if json_match:
+                        logger.info("Extracted JSON object from response")
+                        return json_match.group(1).strip()
+                
                 return response.text
             else:
                 logger.warning("Gemini API returned empty response")
@@ -85,4 +114,4 @@ class GeminiLLMClient(BaseLLMClient):
 
         except Exception as e:
             logger.error(f"Error calling Gemini API: {e}")
-            raise
+            return f'{{"error": "Error calling Gemini API: {str(e)}"}}'

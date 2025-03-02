@@ -133,7 +133,7 @@ class BatchProcessor:
         output_content = self.llm_client.client.files.retrieve_content(batch_results.output_file_id)
         for line in output_content.splitlines():
             result = json.loads(line)
-            results_by_id[result['custom_id']] = result['response']['body']['choices'][0]['message']['content']
+            results_by_id[result['custom_id']] = result['response']['choices'][0]['message']['content']
             
         # Create structure
         generated_posts = []

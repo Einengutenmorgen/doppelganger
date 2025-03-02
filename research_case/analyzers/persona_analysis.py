@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import re
 from typing import List, Dict, Optional, Union, Tuple
 from dataclasses import dataclass
 import traceback2 as traceback
@@ -125,7 +126,84 @@ class PersonaAnalyzer:
             raise
 
     @staticmethod
-    def parse_analysis(response: str, selected_fields: List[str]) -> Dict:
+    def fix_json_string(json_str):
+        """
+        Attempt to fix common JSON string issues:
+        1. Unterminated strings
+        2. Unescaped quotes within strings
+        3. Trailing commas
+        4. Missing closing brackets
+        
+        Returns the fixed JSON string or the original if fixing fails.
+        """
+        try:
+            # First try to parse as is
+            json.loads(json_str)
+            return json_str
+        except json.JSONDecodeError as e:
+            logger.info(f"Attempting to fix JSON error: {e}")
+            
+            fixed_str = json_str
+            
+            # Fix unterminated strings - look for keys without closing quotes
+            key_pattern = r'("[\w_]+)(\s*:)'
+            fixed_str = re.sub(key_pattern, r'\1"\2', fixed_str)
+            
+            # Fix unescaped quotes in strings
+            # This is a simplified approach - a more robust solution would be more complex
+            value_pattern = r':(\s*)"([^"]*?)([^\\])"([^,}\]])'
+            fixed_str = re.sub(value_pattern, r':\1"\2\3\\"\4', fixed_str)
+            
+            # Fix trailing commas in objects
+            fixed_str = re.sub(r',(\s*})', r'\1', fixed_str)
+            
+            # Fix trailing commas in arrays
+            fixed_str = re.sub(r',(\s*\])', r'\1', fixed_str)
+            
+            # Check if we have balanced brackets
+            open_curly = fixed_str.count('{')
+            close_curly = fixed_str.count('}')
+            open_square = fixed_str.count('[')
+            close_square = fixed_str.count(']')
+            
+            # Add missing closing brackets
+            if open_curly > close_curly:
+                fixed_str += '}' * (open_curly - close_curly)
+            if open_square > close_square:
+                fixed_str += ']' * (open_square - close_square)
+            
+            # Try to parse the fixed string
+            try:
+                json.loads(fixed_str)
+                logger.info("Successfully fixed JSON string")
+                return fixed_str
+            except json.JSONDecodeError:
+                logger.warning("Could not fix JSON automatically")
+                return json_str
+
+    @staticmethod
+    def extract_json_from_text(text):
+        """
+        Extract a JSON object from text that might contain other content.
+        Returns the extracted JSON string or None if no JSON-like structure is found.
+        """
+        # Try to find JSON object pattern
+        json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            # Try to fix any JSON issues
+            return PersonaAnalyzer.fix_json_string(json_str)
+        return None
+
+    @staticmethod
+    def parse_analysis(response: str, selected_fields: Optional[List[str]] = None) -> Dict:
+        """
+        Parse the LLM response into a structured format.
+        Now with improved JSON error handling.
+        """
+        if selected_fields is None:
+            selected_fields = PERSONA_FIELDS
+            
         def convert_to_string(value) -> str:
             """Convert various data types to string format"""
             if isinstance(value, (list, tuple)):
@@ -135,30 +213,48 @@ class PersonaAnalyzer:
             return str(value)
             
         try:
+            # First try to parse as is
             analysis = json.loads(response)
-            result = {}
-            for field in selected_fields:  # Only check selected fields
-                if field not in analysis:
-                    logger.warning(f"Missing required field: {field}")
-                    result[field] = "N/A"
-                    continue
-                
-                try:
-                    result[field] = convert_to_string(analysis[field])
-                    if not result[field].strip():
-                        logger.warning(f"Field {field} is empty")
-                        result[field] = "N/A"
-                except Exception as e:
-                    logger.error(f"Error converting field {field}: {e}")
-                    result[field] = "N/A"
-                    
-            return result
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
-            return {field: "Error: Invalid JSON response" for field in selected_fields}
-        except Exception as e:
-            logger.error(f"Unexpected error during analysis parsing: {e}")
-            return {field: "Error: Unexpected parsing error" for field in selected_fields}
+            
+            # Try to extract and fix JSON
+            fixed_json = PersonaAnalyzer.extract_json_from_text(response)
+            if fixed_json:
+                try:
+                    analysis = json.loads(fixed_json)
+                    logger.info("Successfully extracted and fixed JSON")
+                except json.JSONDecodeError as e2:
+                    logger.error(f"Failed to parse extracted JSON: {e2}")
+                    return {field: "Error: Invalid JSON response" for field in selected_fields}
+            else:
+                # Try direct fixing as a last resort
+                fixed_json = PersonaAnalyzer.fix_json_string(response)
+                try:
+                    analysis = json.loads(fixed_json)
+                    logger.info("Successfully fixed JSON directly")
+                except json.JSONDecodeError:
+                    logger.error("All JSON fixing attempts failed")
+                    return {field: "Error: Invalid JSON response" for field in selected_fields}
+        
+        # Process the successfully parsed JSON
+        result = {}
+        for field in selected_fields:
+            if field not in analysis:
+                logger.warning(f"Missing required field: {field}")
+                result[field] = "N/A"
+                continue
+            
+            try:
+                result[field] = convert_to_string(analysis[field])
+                if not result[field].strip():
+                    logger.warning(f"Field {field} is empty")
+                    result[field] = "N/A"
+            except Exception as e:
+                logger.error(f"Error converting field {field}: {e}")
+                result[field] = "N/A"
+                
+        return result
 
     @staticmethod
     def load_json(file_path: str) -> Union[Dict, List]:

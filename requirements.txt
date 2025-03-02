@@ -2,6 +2,7 @@ backports.tarfile==1.2.0
 black==24.10.0
 flake8==7.1.1
 fqdn==1.5.1
+google-generativeai==0.3.2
 importlib-metadata==8.0.0
 isoduration==20.11.0
 jaraco.collections==5.1.0
