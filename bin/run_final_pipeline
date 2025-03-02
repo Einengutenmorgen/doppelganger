@@ -1,0 +1,68 @@
+#!/bin/bash
+# Run the Final Pipeline script with default settings
+
+# Default paths - modify these as needed
+INPUT_PATH="/Users/mogen/Desktop/Research_Case/data/preprocessed/processed_users.json"
+OUTPUT_PATH="/Users/mogen/Desktop/Research_Case/results/persona_variations.jsonl"
+LOG_DIR="./logs"
+LOG_FILE="${LOG_DIR}/final_pipeline_$(date +%Y%m%d_%H%M%S).log"
+SCRIPT_PATH="/Users/mogen/Desktop/Research_Case/bin/final_pipeline"
+
+# Create directories if they don't exist
+mkdir -p ./results
+mkdir -p $LOG_DIR
+
+# Default to gemini if not specified
+LLM_PROVIDER="gemini"
+
+# Check if LLM provider is specified
+if [ "$1" == "--use-openai" ]; then
+    LLM_PROVIDER="openai"
+    shift # Remove this argument
+elif [ "$1" == "--use-gemini" ]; then
+    LLM_PROVIDER="gemini"
+    shift # Remove this argument
+fi
+
+# Check if API keys are set based on provider
+if [ "$LLM_PROVIDER" == "openai" ]; then
+    if [ -z "$OPENAI_API_KEY" ]; then
+        echo "Error: OPENAI_API_KEY environment variable is not set."
+        echo "Please set it before running this script:"
+        echo "export OPENAI_API_KEY=your_key_here"
+        exit 1
+    fi
+    echo "Using OpenAI API"
+else
+    if [ -z "$GOOGLE_API_KEY" ]; then
+        echo "Error: GOOGLE_API_KEY environment variable is not set."
+        echo "Please set it before running this script:"
+        echo "export GOOGLE_API_KEY=your_key_here"
+        exit 1
+    fi
+    echo "Using Google Gemini API"
+fi
+
+# Check if the script exists
+if [ ! -f "$SCRIPT_PATH" ]; then
+    echo "Error: Script not found at $SCRIPT_PATH"
+    exit 1
+fi
+
+# Make the script executable if it's not already
+chmod +x $SCRIPT_PATH
+
+# Run the script with standard parameters
+echo "Starting Final Pipeline..."
+$SCRIPT_PATH \
+    --input "$INPUT_PATH" \
+    --output "$OUTPUT_PATH" \
+    --num-users 500 \
+    --min-posts 400 \
+    --persona-posts 380 \
+    --save-frequency 5 \
+    --log-level INFO \
+    --llm-provider "$LLM_PROVIDER" \
+    "$@" 2>&1 | tee "$LOG_FILE"
+
+echo "Process completed. Log saved to $LOG_FILE"

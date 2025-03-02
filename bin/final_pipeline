@@ -1,0 +1,615 @@
+#!/usr/bin/env python3
+"""
+Final Pipeline for Persona Variation Generation
+
+This script:
+1. Samples users with sufficient posts (400+)
+2. Generates complete personas for each user using 380 posts
+3. Creates neutral stimuli from the remaining posts
+4. Generates synthetic posts with varying persona field combinations (2-8 fields)
+5. Saves results in JSONL format after each user
+
+Compatible with both OpenAI and Google Gemini APIs
+"""
+
+import argparse
+import json
+import logging
+import os
+import random
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, List, Set, Tuple, Optional
+from itertools import combinations
+import jsonlines
+
+from dotenv import load_dotenv
+
+# Add project root to path if needed
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+from research_case.analyzers.llm_client import BaseLLMClient, LLMClient
+from research_case.LLMclients.llm_client_google import GeminiLLMClient
+from research_case.analyzers.persona_analysis import PersonaAnalyzer
+from research_case.generators.post_generator import PostGenerator, StimulusGenerator, GenerationPrompt
+from research_case.analyzers.persona_prompt import PERSONA_FIELDS
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def setup_args() -> argparse.Namespace:
+    """Set up command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Generate synthetic posts with varying persona field combinations.'
+    )
+    parser.add_argument(
+        '--input',
+        type=str,
+        required=True,
+        help='Path to JSON file containing user posts'
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        required=True,
+        help='Path to save the generated data'
+    )
+    parser.add_argument(
+        '--num-users',
+        type=int,
+        default=500,
+        help='Number of users to sample'
+    )
+    parser.add_argument(
+        '--min-posts',
+        type=int,
+        default=400,
+        help='Minimum number of posts required per user'
+    )
+    parser.add_argument(
+        '--persona-posts',
+        type=int,
+        default=380,
+        help='Number of posts to use for persona generation'
+    )
+    parser.add_argument(
+        '--resume',
+        action='store_true',
+        help='Resume from where processing left off'
+    )
+    parser.add_argument(
+        '--log-level',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default='INFO',
+        help='Set the logging level'
+    )
+    parser.add_argument(
+        '--save-frequency',
+        type=int,
+        default=10,
+        help='Save progress every N stimuli processed'
+    )
+    parser.add_argument(
+        '--llm-provider',
+        type=str,
+        choices=['openai', 'gemini'],
+        default='gemini',
+        help='LLM provider to use (default: gemini)'
+    )
+    parser.add_argument(
+        '--model-name',
+        type=str,
+        help='Specific model name to use (optional)'
+    )
+    return parser.parse_args()
+
+def get_processed_users(output_path: str) -> Set[str]:
+    """
+    Get set of user IDs that have already been processed.
+    
+    Args:
+        output_path: Path to the output JSONL file
+        
+    Returns:
+        Set of processed user IDs
+    """
+    processed_users = set()
+    
+    if os.path.exists(output_path):
+        try:
+            with jsonlines.open(output_path, 'r') as reader:
+                for obj in reader:
+                    if 'user_id' in obj:
+                        processed_users.add(obj['user_id'])
+            
+            logger.info(f"Found {len(processed_users)} already processed users")
+        except Exception as e:
+            logger.warning(f"Error reading existing output file: {e}")
+    
+    return processed_users
+
+def sample_users(data: Dict, num_users: int, min_posts: int, exclude_users: Set[str] = None) -> Dict:
+    """
+    Sample users with at least min_posts posts, excluding already processed users.
+    
+    Args:
+        data: Dictionary of user data
+        num_users: Target number of users to sample
+        min_posts: Minimum number of posts required
+        exclude_users: Set of user IDs to exclude
+        
+    Returns:
+        Dictionary of sampled users
+    """
+    exclude_users = exclude_users or set()
+    
+    # Filter users with sufficient posts and not already processed
+    eligible_users = {
+        user_id: posts for user_id, posts in data.items()
+        if len(posts) >= min_posts and user_id not in exclude_users
+    }
+    
+    logger.info(f"Found {len(eligible_users)} eligible users with at least {min_posts} posts")
+    
+    # If we don't have enough eligible users, use all of them
+    if len(eligible_users) <= num_users:
+        logger.warning(f"Only {len(eligible_users)} eligible users remaining. Using all of them.")
+        return eligible_users
+    
+    # Randomly sample users
+    sampled_user_ids = random.sample(list(eligible_users.keys()), num_users)
+    sampled_users = {uid: eligible_users[uid] for uid in sampled_user_ids}
+    
+    logger.info(f"Sampled {len(sampled_users)} users")
+    return sampled_users
+
+def create_llm_client(provider: str, model_name: Optional[str] = None) -> BaseLLMClient:
+    """
+    Create an LLM client based on the specified provider.
+    
+    Args:
+        provider: LLM provider to use ("openai" or "gemini")
+        model_name: Specific model name to use (optional)
+        
+    Returns:
+        BaseLLMClient instance
+    """
+    if provider == "openai":
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set.")
+        
+        # Use default model if not specified
+        if not model_name:
+            model_name = "gpt-4o"
+            
+        return LLMClient(api_key=api_key, model_name=model_name)
+    
+    elif provider == "gemini":
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is not set.")
+        
+        # Use default model if not specified
+        if not model_name:
+            model_name = "gemini-1.5-flash-001"
+            
+        return GeminiLLMClient(api_key=api_key, model_name=model_name)
+    
+    else:
+        raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'.")
+
+def generate_persona(user_id: str, posts: List[Dict], persona_analyzer: PersonaAnalyzer) -> Dict:
+    """
+    Generate complete persona for a user using existing PersonaAnalyzer.
+    
+    Args:
+        user_id: User identifier
+        posts: List of user posts
+        persona_analyzer: PersonaAnalyzer instance
+        
+    Returns:
+        Dictionary containing persona fields
+    """
+    try:
+        logger.info(f"Generating complete persona for user {user_id}")
+        
+        # Create prompt using the user's posts
+        prompt = persona_analyzer.create_persona_prompt(posts, [], len(posts))
+        
+        # Get persona analysis - compatible with both OpenAI and Gemini
+        response = persona_analyzer.llm_client.call(
+            prompt=prompt,
+            temperature=0.1,
+            max_tokens=1000,
+            response_format={"type": "json_object"}
+        )
+        persona = persona_analyzer.parse_analysis(response, PERSONA_FIELDS)
+        
+        return persona
+    except Exception as e:
+        logger.error(f"Error generating persona for user {user_id}: {e}")
+        # Return a partial persona if possible
+        if 'persona' in locals() and persona:
+            logger.warning("Returning partial persona due to error")
+            return persona
+        raise
+
+def create_stimuli(posts: List[Dict], stimulus_generator: StimulusGenerator, 
+                  save_frequency: int = 10, callback=None) -> List[Dict]:
+    """
+    Create neutral stimuli from posts with progress tracking.
+    
+    Args:
+        posts: List of posts
+        stimulus_generator: StimulusGenerator instance
+        save_frequency: How often to save progress
+        callback: Function to call to save progress
+        
+    Returns:
+        List of dictionaries containing original post and stimulus
+    """
+    stimuli = []
+    
+    for i, post in enumerate(posts):
+        try:
+            original_text = post.get('full_text', '')
+            # Add a small delay to avoid rate limiting with Gemini API
+            if i > 0 and i % 5 == 0:
+                time.sleep(1)
+                
+            stimulus = stimulus_generator.create_post_stimulus(original_text)
+            
+            stimuli.append({
+                'post_id': post.get('tweet_id', ''),
+                'original_text': original_text,
+                'stimulus': stimulus,
+                'timestamp': post.get('created_at', '')
+            })
+            
+            # Call callback function to save progress
+            if callback and (i + 1) % save_frequency == 0:
+                callback()
+                logger.info(f"Progress saved after processing {i + 1}/{len(posts)} stimuli")
+                
+        except Exception as e:
+            logger.error(f"Error creating stimulus for post {i}: {e}")
+            # Continue with next post
+    
+    logger.info(f"Created {len(stimuli)} stimuli")
+    return stimuli
+
+def generate_field_combinations(min_fields: int = 2, max_fields: int = 8) -> List[List[str]]:
+    """
+    Generate all possible combinations of persona fields within range.
+    
+    Args:
+        min_fields: Minimum number of fields to use
+        max_fields: Maximum number of fields to use
+        
+    Returns:
+        List of field combinations
+    """
+    all_combinations = []
+    
+    for i in range(min_fields, max_fields + 1):
+        field_combinations = list(combinations(PERSONA_FIELDS, i))
+        all_combinations.extend(field_combinations)
+    
+    # Shuffle the combinations for randomness
+    random.shuffle(all_combinations)
+    
+    return [list(combo) for combo in all_combinations]
+
+def generate_synthetic_posts(
+    stimuli: List[Dict],
+    persona: Dict,
+    post_generator: PostGenerator,
+    min_fields: int = 2,
+    max_fields: int = 8,
+    save_frequency: int = 10,
+    callback=None
+) -> List[Dict]:
+    """
+    Generate synthetic posts with varying persona field combinations.
+    
+    Args:
+        stimuli: List of stimuli
+        persona: Complete persona
+        post_generator: PostGenerator instance
+        min_fields: Minimum number of fields to use
+        max_fields: Maximum number of fields to use
+        save_frequency: How often to save progress
+        callback: Function to call to save progress
+        
+    Returns:
+        List of generated posts with field info
+    """
+    # Generate all possible field combinations within range
+    field_combinations = generate_field_combinations(min_fields, max_fields)
+    
+    # Ensure we have enough combinations for all stimuli
+    if len(field_combinations) < len(stimuli):
+        # Repeat combinations if needed
+        additional_needed = len(stimuli) - len(field_combinations)
+        extra_combinations = random.sample(field_combinations, additional_needed)
+        field_combinations.extend(extra_combinations)
+    
+    # Limit to the number of stimuli
+    field_combinations = field_combinations[:len(stimuli)]
+    
+    generated_posts = []
+    
+    for i, stimulus_data in enumerate(stimuli):
+        try:
+            # Get the field combination for this post
+            selected_fields = field_combinations[i]
+            
+            # Create a reduced persona with only selected fields
+            reduced_persona = {field: persona.get(field, '') for field in selected_fields}
+            
+            # Create generation prompt
+            prompt = GenerationPrompt(
+                persona=reduced_persona,
+                stimulus=stimulus_data['stimulus']
+            )
+            
+            # Add a small delay for rate limiting
+            if i > 0 and i % 3 == 0:
+                time.sleep(1)
+                
+            # Generate the post
+            generated_text = post_generator.generate_post(prompt)
+            
+            generated_posts.append({
+                'original_post_id': stimulus_data['post_id'],
+                'original_text': stimulus_data['original_text'],
+                'stimulus': stimulus_data['stimulus'],
+                'generated_text': generated_text,
+                'fields_used': selected_fields,
+                'generation_timestamp': datetime.now(timezone.utc).isoformat(),
+                'original_timestamp': stimulus_data['timestamp']
+            })
+            
+            # Call callback function to save progress
+            if callback and (i + 1) % save_frequency == 0:
+                callback(generated_posts)
+                logger.info(f"Progress saved after generating {i + 1}/{len(stimuli)} posts")
+                
+        except Exception as e:
+            logger.error(f"Error generating post for stimulus {i}: {e}")
+            # Continue with next stimulus
+    
+    logger.info(f"Generated {len(generated_posts)} synthetic posts")
+    return generated_posts
+
+def save_intermediate_results(user_id: str, persona: Optional[Dict], 
+                             generated_posts: List[Dict], output_path: str):
+    """
+    Save intermediate results for a user in JSONL format.
+    
+    Args:
+        user_id: User identifier
+        persona: User's persona (can be None for intermediate saves)
+        generated_posts: List of generated posts so far
+        output_path: Path to save results
+    """
+    # Create temporary file path
+    temp_path = f"{output_path}.temp"
+    
+    # Prepare the user's data
+    user_data = {
+        'user_id': user_id,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'status': 'in_progress',
+        'persona': persona,
+        'posts': generated_posts
+    }
+    
+    # Write to temporary file
+    with open(temp_path, 'w') as f:
+        json.dump(user_data, f, indent=2)
+    
+    # Rename to final path (safer atomic operation)
+    os.replace(temp_path, output_path)
+    
+    logger.debug(f"Saved intermediate results for user {user_id}")
+
+def save_user_results(user_id: str, persona: Dict, generated_posts: List[Dict], output_path: str):
+    """
+    Save final results for a user in JSONL format.
+    
+    Args:
+        user_id: User identifier
+        persona: User's persona
+        generated_posts: List of generated posts
+        output_path: Path to save results
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # Prepare the user's data
+    user_data = {
+        'user_id': user_id,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'status': 'completed',
+        'persona': persona,
+        'posts': generated_posts
+    }
+    
+    # Append to JSONL file
+    with jsonlines.open(output_path, 'a') as writer:
+        writer.write(user_data)
+    
+    logger.info(f"Saved results for user {user_id} to {output_path}")
+    
+    # Remove any intermediate file if it exists
+    intermediate_path = f"{output_path}.{user_id}.temp"
+    if os.path.exists(intermediate_path):
+        os.remove(intermediate_path)
+
+def process_user(
+    user_id: str,
+    posts: List[Dict],
+    output_path: str,
+    persona_analyzer: PersonaAnalyzer,
+    stimulus_generator: StimulusGenerator,
+    post_generator: PostGenerator,
+    persona_posts_count: int = 380,
+    min_fields: int = 2,
+    max_fields: int = 8,
+    save_frequency: int = 10
+):
+    """
+    Process a single user with progress tracking.
+    
+    Args:
+        user_id: User identifier
+        posts: User's posts
+        output_path: Path to save results
+        persona_analyzer: PersonaAnalyzer instance
+        stimulus_generator: StimulusGenerator instance
+        post_generator: PostGenerator instance
+        persona_posts_count: Number of posts to use for persona generation
+        min_fields: Minimum number of persona fields to use
+        max_fields: Maximum number of persona fields to use
+        save_frequency: How often to save progress
+    """
+    # Create intermediate file path for this user
+    intermediate_path = f"{output_path}.{user_id}.temp"
+    
+    # Define callback for saving intermediate results
+    def save_callback(generated_posts=None):
+        save_intermediate_results(
+            user_id, 
+            persona if 'persona' in locals() else None,
+            generated_posts or [],
+            intermediate_path
+        )
+    
+    try:
+        logger.info(f"Processing user {user_id} with {len(posts)} posts")
+        
+        # Split posts for persona generation and stimuli
+        persona_posts = posts[:persona_posts_count]
+        stimulus_posts = posts[persona_posts_count:]
+        
+        # Generate complete persona
+        persona = generate_persona(user_id, persona_posts, persona_analyzer)
+        save_callback()  # Save after persona generation
+        
+        # Create stimuli from remaining posts
+        stimuli = create_stimuli(
+            stimulus_posts, 
+            stimulus_generator,
+            save_frequency,
+            save_callback
+        )
+        
+        # Generate synthetic posts with varying field combinations
+        generated_posts = generate_synthetic_posts(
+            stimuli,
+            persona,
+            post_generator,
+            min_fields,
+            max_fields,
+            save_frequency,
+            save_callback
+        )
+        
+        # Save final results
+        save_user_results(user_id, persona, generated_posts, output_path)
+        
+        logger.info(f"Completed processing for user {user_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error processing user {user_id}: {e}")
+        logger.debug("Traceback:", exc_info=True)
+        return False
+
+def main():
+    """Main execution function."""
+    # Parse arguments
+    args = setup_args()
+    
+    # Set logging level
+    logging.getLogger().setLevel(getattr(logging, args.log_level))
+    
+    # Load environment variables
+    load_dotenv()
+    
+    try:
+        # Initialize the LLM client with the specified provider
+        llm_client = create_llm_client(args.llm_provider, args.model_name)
+        logger.info(f"Using {args.llm_provider.upper()} API with model: {llm_client.model_name if hasattr(llm_client, 'model_name') else 'default'}")
+        
+        # Initialize analyzers and generators with the same client
+        persona_analyzer = PersonaAnalyzer(llm_client)
+        post_generator = PostGenerator(llm_client)
+        stimulus_generator = StimulusGenerator(llm_client)
+        
+        # Load user data
+        logger.info(f"Loading user data from {args.input}")
+        with open(args.input, 'r') as f:
+            all_users = json.load(f)
+        
+        # Get already processed users if resuming
+        processed_users = set()
+        if args.resume:
+            processed_users = get_processed_users(args.output)
+        
+        # Sample users
+        sampled_users = sample_users(
+            all_users, 
+            args.num_users, 
+            args.min_posts,
+            processed_users if args.resume else None
+        )
+        
+        # Check if we have users to process
+        if not sampled_users:
+            logger.info("No eligible users to process. Exiting.")
+            sys.exit(0)
+        
+        # Process each user
+        success_count = 0
+        for user_id, posts in sampled_users.items():
+            success = process_user(
+                user_id,
+                posts,
+                args.output,
+                persona_analyzer,
+                stimulus_generator,
+                post_generator,
+                args.persona_posts,
+                min_fields=2,
+                max_fields=8,
+                save_frequency=args.save_frequency
+            )
+            
+            if success:
+                success_count += 1
+            
+            # Sleep between users to avoid rate limiting
+            time.sleep(5)
+        
+        logger.info(f"Completed processing {success_count}/{len(sampled_users)} users. Results saved to {args.output}")
+        
+    except FileNotFoundError:
+        logger.error(f"Input file not found: {args.input}")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        logger.error(f"Invalid JSON in input file: {args.input}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        logger.debug("Traceback:", exc_info=True)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

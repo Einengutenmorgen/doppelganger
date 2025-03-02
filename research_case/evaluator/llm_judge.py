@@ -8,40 +8,45 @@ load_dotenv()
 
 from openai import OpenAI
 
-from research_case.analyzers.llm_client import LLMClient
+from research_case.analyzers.llm_client import BaseLLMClient, LLMClient
 from research_case.LLMclients.llm_client_google import GeminiLLMClient
 
-
 logger = logging.getLogger(__name__)
-
     
 class LLMJudge:
     """LLM-based judge for evaluating generated posts quality and authenticity."""
     
     def __init__(self, 
                 client_type: str = "gemini",
-                model_name: str = None):
+                model_name: str = None,
+                custom_client: BaseLLMClient = None):
         """
         Initialize LLM judge with specified client type.
         
         Args:
             client_type: Type of LLM client to use ("openai" or "gemini")
             model_name: Name of the model to use (optional)
+            custom_client: Pre-configured LLM client (optional)
         """
+        # Use custom client if provided
+        if custom_client is not None:
+            self.llm_client = custom_client
+            self.client_type = "custom"
+            logger.info("Using provided custom LLM client")
+            return
+            
         # Get appropriate API key based on client type
         if client_type == "openai":
             api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 raise ValueError("OPENAI_API_KEY environment variable is not set.")
-            self.llm_client = OpenAI(api_key=api_key)
-            self.model_name = model_name or "gpt-4"
+            self.llm_client = LLMClient(api_key=api_key, model_name=model_name or "gpt-4o")
             
         elif client_type == "gemini":
             api_key = os.getenv('GOOGLE_API_KEY')
             if not api_key:
                 raise ValueError("GOOGLE_API_KEY environment variable is not set.")
-            self.llm_client = GeminiLLMClient(api_key=api_key)
-            # Note: model_name is handled internally for Gemini client
+            self.llm_client = GeminiLLMClient(api_key=api_key, model_name=model_name or "gemini-1.5-flash-001")
             
         else:
             raise ValueError(f"Unsupported client_type: {client_type}. Use 'openai' or 'gemini'.")
@@ -93,21 +98,13 @@ class LLMJudge:
         logger.debug(f"Prompt: {prompt}")
 
         try:
-            # Handle different client types
-            if self.client_type == "openai":
-                response = self.llm_client.chat.completions.create(
-                    model=self.model_name,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.1,
-                    max_tokens=500
-                )
-                response_text = response.choices[0].message.content
-            else:  # gemini
-                response_text = self.llm_client.call(
-                    prompt=prompt,
-                    temperature=0.1,
-                    max_tokens=500
-                )
+            # Use unified client interface
+            response_text = self.llm_client.call(
+                prompt=prompt,
+                temperature=0.1,
+                max_tokens=500,
+                response_format={"type": "json_object"}
+            )
             
             logger.info("Received response from LLM.")
             logger.debug(f'Raw Response: {response_text}')

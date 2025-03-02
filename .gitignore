@@ -15,4 +15,7 @@ test_run
 batch_eval
 batch_eval_2
 fine_tune
-
+./*.json
+./*.csv
+./*.png
+.DS_Store
