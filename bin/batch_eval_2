@@ -1,0 +1,854 @@
+#!/usr/bin/env python3
+"""Enhanced batch processor for OpenAI API calls with robust error handling and safety checks."""
+
+import argparse
+import json
+import logging
+import os
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Union
+from dataclasses import dataclass
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import requests
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+@dataclass
+class BatchConfig:
+    """Configuration parameters for batch processing."""
+    max_request_size: int = 4096  # Maximum size of a single request in bytes
+    max_file_size: int = 100 * 1024 * 1024  # Maximum size for response files (100MB)
+    max_retries: int = 3  # Maximum number of retry attempts
+    retry_delay: int = 60  # Delay between retries in seconds
+    check_interval: int = 60  # Interval between batch status checks
+    timeout: int = 86400  # Maximum time to wait for batch completion (24h)
+    request_timeout: int = 300  # Timeout for individual API requests (5min)
+    checkpoint_interval: int = 300  # Interval between saving checkpoints (5min)
+    checkpoint_max_kept: int = 5  # Maximum number of checkpoints to keep
+    valid_statuses: Set[str] = frozenset({
+        "queued", "validating", "in_progress", "processing", 
+        "completed", "failed", "cancelled", "expired"
+        })
+    
+class BatchCheckpoint:
+    """Handles saving and loading batch processing state."""
+    
+    def __init__(self, checkpoint_dir: str, max_kept: int = 5):
+        """
+        Initialize checkpoint manager.
+        
+        Args:
+            checkpoint_dir: Directory to store checkpoint files
+            max_kept: Maximum number of checkpoints to keep per batch
+        """
+        self.checkpoint_dir = checkpoint_dir
+        self.max_kept = max_kept
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        
+    @staticmethod
+    def _serialize_batch_info(batch_info) -> Dict:
+        """Convert batch info to JSON serializable dictionary."""
+        if not batch_info:
+            return None
+            
+        return {
+            'id': batch_info.id,
+            'status': batch_info.status,
+            'object': batch_info.object,
+            'errors': batch_info.errors,
+            'input_file_id': batch_info.input_file_id,
+            'output_file_id': batch_info.output_file_id,
+            'error_file_id': batch_info.error_file_id,
+            'completion_window': batch_info.completion_window,
+            'created_at': batch_info.created_at,
+            'expired_at': batch_info.expired_at,
+            'completed_at': batch_info.completed_at,
+            'failed_at': batch_info.failed_at,
+            'request_counts': {
+                'total': batch_info.request_counts.total if hasattr(batch_info.request_counts, 'total') else 0,
+                'completed': batch_info.request_counts.completed if hasattr(batch_info.request_counts, 'completed') else 0,
+                'failed': batch_info.request_counts.failed if hasattr(batch_info.request_counts, 'failed') else 0
+            } if hasattr(batch_info, 'request_counts') else None
+        }
+    
+    def save_state(self, batch_id: str, batch_info: Dict, processed_results: List[Dict] = None) -> str:
+        """Save current batch processing state."""
+        checkpoint = {
+            'batch_id': batch_id,
+            'batch_info': self._serialize_batch_info(batch_info),
+            'timestamp': datetime.now().isoformat(),
+            'processed_results': processed_results or []
+        }
+        
+        checkpoint_path = os.path.join(
+            self.checkpoint_dir,
+            f"batch_checkpoint_{batch_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        
+        try:
+            with open(checkpoint_path, 'w') as f:
+                json.dump(checkpoint, f, indent=2)
+            
+            # Clean up old checkpoints
+            self.clean_old_checkpoints(batch_id)
+            return checkpoint_path
+            
+        except IOError as e:
+            logger.error(f"Failed to save checkpoint: {e}")
+            raise BatchProcessingError(f"Failed to save checkpoint: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Failed to serialize checkpoint data: {e}")
+            raise BatchProcessingError(f"Failed to serialize checkpoint data: {str(e)}")
+    
+    # def save_state(self, batch_id: str, batch_info: Dict, processed_results: List[Dict] = None) -> str:
+    #     """Save current batch processing state."""
+    #     checkpoint = {
+    #         'batch_id': batch_id,
+    #         'batch_info': batch_info,
+    #         'timestamp': datetime.now().isoformat(),
+    #         'processed_results': processed_results or []
+    #     }
+        
+    #     checkpoint_path = os.path.join(
+    #         self.checkpoint_dir,
+    #         f"batch_checkpoint_{batch_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    #     )
+        
+    #     try:
+    #         with open(checkpoint_path, 'w') as f:
+    #             json.dump(checkpoint, f, indent=2)
+            
+    #         # Clean up old checkpoints
+    #         self.clean_old_checkpoints(batch_id)
+    #         return checkpoint_path
+            
+    #     except IOError as e:
+    #         logger.error(f"Failed to save checkpoint: {e}")
+    #         raise BatchProcessingError(f"Failed to save checkpoint: {str(e)}")
+    
+    def load_latest_checkpoint(self, batch_id: str = None) -> Optional[Dict]:
+        """Load most recent checkpoint."""
+        try:
+            checkpoints = []
+            for file in os.listdir(self.checkpoint_dir):
+                if not file.startswith('batch_checkpoint_'):
+                    continue
+                if batch_id and batch_id not in file:
+                    continue
+                    
+                checkpoint_path = os.path.join(self.checkpoint_dir, file)
+                try:
+                    with open(checkpoint_path, 'r') as f:
+                        checkpoint = json.load(f)
+                        checkpoint['file_path'] = checkpoint_path
+                        checkpoints.append(checkpoint)
+                except json.JSONDecodeError:
+                    logger.warning(f"Skipping invalid checkpoint file: {file}")
+                    continue
+            
+            if not checkpoints:
+                return None
+                
+            return max(checkpoints, key=lambda x: x['timestamp'])
+            
+        except Exception as e:
+            logger.error(f"Error loading checkpoints: {e}")
+            return None
+    
+    def clean_old_checkpoints(self, batch_id: str = None) -> None:
+        """Remove old checkpoints, keeping only the most recent ones."""
+        try:
+            checkpoints = []
+            for file in os.listdir(self.checkpoint_dir):
+                if not file.startswith('batch_checkpoint_'):
+                    continue
+                if batch_id and batch_id not in file:
+                    continue
+                    
+                checkpoint_path = os.path.join(self.checkpoint_dir, file)
+                checkpoints.append((
+                    checkpoint_path,
+                    os.path.getmtime(checkpoint_path)
+                ))
+            
+            # Sort by modification time and keep only the most recent ones
+            checkpoints.sort(key=lambda x: x[1], reverse=True)
+            for path, _ in checkpoints[self.max_kept:]:
+                try:
+                    os.remove(path)
+                except OSError as e:
+                    logger.warning(f"Failed to remove old checkpoint {path}: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error cleaning old checkpoints: {e}")
+
+class BatchProcessingError(Exception):
+    """Base exception for batch processing errors."""
+    pass
+
+class BatchSizeError(BatchProcessingError):
+    """Exception for size-related errors."""
+    pass
+
+class BatchStatusError(BatchProcessingError):
+    """Exception for status-related errors."""
+    pass
+
+class BatchTimeoutError(BatchProcessingError):
+    """Exception for timeout-related errors."""
+    pass
+
+class RateLimitExceeded(BatchProcessingError):
+    """Exception for rate limit errors."""
+    pass
+
+class BatchProcessor:
+    """Enhanced batch processor with robust error handling and safety checks."""
+    
+    def __init__(self, api_key: str, config: Optional[BatchConfig] = None, checkpoint_dir: Optional[str] = None):
+        """Initialize BatchProcessor with API credentials and optional checkpoint support."""
+        self.client = OpenAI(api_key=api_key)
+        self.config = config or BatchConfig()
+        self._validate_config()
+        self.checkpoint = BatchCheckpoint(checkpoint_dir, self.config.checkpoint_max_kept) if checkpoint_dir else None
+
+        
+    def _validate_config(self) -> None:
+        """Validate configuration parameters."""
+        if self.config.max_request_size <= 0:
+            raise ValueError("max_request_size must be positive")
+        if self.config.max_file_size <= 0:
+            raise ValueError("max_file_size must be positive")
+        if self.config.max_retries < 0:
+            raise ValueError("max_retries cannot be negative")
+        if self.config.timeout <= 0:
+            raise ValueError("timeout must be positive")
+
+    def _validate_request_size(self, request: Dict) -> None:
+        """Validate the size of a single request."""
+        request_size = len(json.dumps(request))
+        if request_size > self.config.max_request_size:
+            raise BatchSizeError(
+                f"Request size ({request_size}) exceeds maximum allowed size "
+                f"({self.config.max_request_size})"
+            )
+
+    def prepare_batch_file(self, evaluations: List[Dict], output_path: str) -> str:
+        """
+        Prepare a JSONL file for batch processing with size validation.
+        
+        Args:
+            evaluations: List of evaluation data
+            output_path: Path to save the batch file
+            
+        Returns:
+            Path to the created batch file
+        
+        Raises:
+            BatchSizeError: If any request exceeds size limits
+        """
+        batch_requests = []
+        
+        for idx, eval_data in enumerate(evaluations):
+            try:
+                request = {
+                    "custom_id": f"eval_{idx}",
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": "gpt-4o",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": self._create_evaluation_prompt(
+                                    eval_data["original_post"],
+                                    eval_data["generated_post"],
+                                    eval_data["persona"],
+                                    eval_data.get("stimulus", "")
+                                )
+                            }
+                        ],
+                        "response_format": {"type": "json_object"}
+                    }
+                }
+                
+                # Validate request size
+                self._validate_request_size(request)
+                batch_requests.append(request)
+                
+            except Exception as e:
+                logger.error(f"Error preparing request {idx}: {str(e)}")
+                raise BatchProcessingError(f"Failed to prepare request {idx}: {str(e)}")
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(output_path, exist_ok=True)
+        
+        # Save as JSONL with timestamp
+        batch_file_path = os.path.join(
+            output_path,
+            f"batch_requests_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+        )
+        
+        try:
+            with open(batch_file_path, 'w') as f:
+                for request in batch_requests:
+                    f.write(json.dumps(request) + '\n')
+        except IOError as e:
+            raise BatchProcessingError(f"Failed to write batch file: {str(e)}")
+                
+        return batch_file_path
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=(retry_if_exception_type(requests.exceptions.RequestException) |
+               retry_if_exception_type(RateLimitExceeded))
+    )
+    def submit_batch(self, batch_file_path: str) -> str:
+        """
+        Submit a batch job to OpenAI with retry logic.
+        
+        Args:
+            batch_file_path: Path to the JSONL batch file
+            
+        Returns:
+            Batch ID
+            
+        Raises:
+            BatchProcessingError: If batch submission fails
+        """
+        try:
+            # Check file size before upload
+            file_size = os.path.getsize(batch_file_path)
+            if file_size > self.config.max_file_size:
+                raise BatchSizeError(
+                    f"Batch file size ({file_size}) exceeds maximum allowed size "
+                    f"({self.config.max_file_size})"
+                )
+            
+            # Upload the file
+            with open(batch_file_path, 'rb') as f:
+                file_response = self.client.files.create(
+                    file=f,
+                    purpose='batch'
+                )
+            
+            # Create the batch
+            batch_response = self.client.batches.create(
+                input_file_id=file_response.id,
+                endpoint="/v1/chat/completions",
+                completion_window="24h"
+            )
+            
+            return batch_response.id
+            
+        except Exception as e:
+            raise BatchProcessingError(f"Failed to submit batch: {str(e)}")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=(retry_if_exception_type(requests.exceptions.RequestException) |
+               retry_if_exception_type(RateLimitExceeded))
+    )
+    def check_batch_status(self, batch_id: str) -> Dict:
+        """
+        Check batch status with retry logic and timeout.
+        
+        Args:
+            batch_id: The ID of the batch to check
+            
+        Returns:
+            Batch status information
+            
+        Raises:
+            BatchStatusError: If status check fails
+        """
+        try:
+            response = self.client.batches.retrieve(batch_id)
+            if not response or not hasattr(response, 'status'):
+                raise BatchStatusError("Invalid batch info received")
+            
+            if response.status not in self.config.valid_statuses:
+                raise BatchStatusError(f"Unknown batch status: {response.status}")
+                
+            return response
+            
+        except Exception as e:
+            raise BatchStatusError(f"Failed to check batch status: {str(e)}")
+
+    def wait_for_batch_completion(
+        self,
+        batch_id: str,
+        check_interval: Optional[int] = None,
+        timeout: Optional[int] = None,
+        checkpoint_interval: Optional[int] = None
+    ) -> Dict:
+        """Wait for batch completion with checkpointing."""
+        check_interval = check_interval or self.config.check_interval
+        timeout = timeout or self.config.timeout
+        checkpoint_interval = checkpoint_interval or self.config.checkpoint_interval
+        
+        start_time = time.time()
+        last_status = None
+        last_checkpoint = time.time()
+        retries = 0
+        batch_info = None
+        
+        while True:
+            try:
+                batch_info = self.check_batch_status(batch_id)
+                current_status = batch_info.status
+                
+                # Log status changes
+                if current_status != last_status:
+                    logger.info(f"Batch status: {current_status}")
+                    last_status = current_status
+                
+                # Save checkpoint if enabled
+                if (self.checkpoint and 
+                    time.time() - last_checkpoint > checkpoint_interval):
+                    try:
+                        checkpoint_path = self.checkpoint.save_state(batch_id, batch_info)
+                        logger.info(f"Saved checkpoint to {checkpoint_path}")
+                        last_checkpoint = time.time()
+                    except Exception as e:
+                        logger.error(f"Failed to save checkpoint: {e}")
+                
+                # Check completion states
+                if current_status == "completed" and batch_info.output_file_id:
+                    logger.info("Batch completed successfully")
+                    return batch_info
+                elif current_status in ["failed", "cancelled", "expired"]:
+                    if self.checkpoint and batch_info:
+                        try:
+                            self.checkpoint.save_state(batch_id, batch_info)
+                        except Exception as e:
+                            logger.error(f"Failed to save final checkpoint: {e}")
+                    raise BatchStatusError(f"Batch ended with status: {current_status}")
+                
+                # Check timeout
+                elapsed_time = time.time() - start_time
+                if elapsed_time > timeout:
+                    if self.checkpoint and batch_info:
+                        try:
+                            self.checkpoint.save_state(batch_id, batch_info)
+                        except Exception as e:
+                            logger.error(f"Failed to save timeout checkpoint: {e}")
+                    raise BatchTimeoutError(
+                        f"Batch processing timed out after {elapsed_time:.1f} seconds"
+                    )
+                
+                # Log progress
+                if batch_info and hasattr(batch_info, "request_counts"):
+                    counts = batch_info.request_counts
+                    if hasattr(counts, "total") and hasattr(counts, "completed"):
+                        progress = (counts.completed / counts.total * 100) if counts.total > 0 else 0
+                        logger.info(
+                            f"Progress: {counts.completed}/{counts.total} "
+                            f"completed ({progress:.1f}%)"
+                        )
+                
+                time.sleep(check_interval)
+                
+            except BatchStatusError as e:
+                retries += 1
+                if retries >= self.config.max_retries:
+                    if self.checkpoint and batch_info:
+                        try:
+                            self.checkpoint.save_state(batch_id, batch_info)
+                        except Exception as save_error:
+                            logger.error(f"Failed to save error checkpoint: {save_error}")
+                    raise BatchProcessingError(
+                        f"Maximum retries ({self.config.max_retries}) exceeded: {str(e)}"
+                    )
+                logger.warning(f"Attempt {retries}/{self.config.max_retries} failed: {str(e)}")
+                time.sleep(self.config.retry_delay)
+
+    def process_batch_results(
+        self,
+        batch_id: str,
+        output_dir: str,
+        max_file_size: Optional[int] = None
+    ) -> List[Dict]:
+        """
+        Process batch results with size validation and error handling.
+        
+        Args:
+            batch_id: The batch ID to process
+            output_dir: Directory to save results
+            max_file_size: Optional override for maximum file size
+            
+        Returns:
+            List of processed results
+            
+        Raises:
+            BatchProcessingError: If result processing fails
+            BatchSizeError: If response size exceeds limits
+        """
+        max_file_size = max_file_size or self.config.max_file_size
+        
+        try:
+            batch_info = self.check_batch_status(batch_id)
+            logger.info(f"Processing batch with status: {batch_info.status}")
+            
+            if batch_info.status != "completed":
+                raise BatchStatusError(
+                    f"Batch not completed. Current status: {batch_info.status}"
+                )
+            
+            if not batch_info.output_file_id:
+                raise BatchStatusError("No output file available")
+            
+            # Download results with timeout
+            response = self.client.files.content(
+                batch_info.output_file_id,
+                timeout=self.config.request_timeout
+            )
+            
+            # Check response size
+            content_length = int(response.headers.get('content-length', 0))
+            if content_length > max_file_size:
+                raise BatchSizeError(
+                    f"Response size ({content_length}) exceeds maximum "
+                    f"allowed size ({max_file_size})"
+                )
+            
+            output_file = response.text
+            if not output_file:
+                raise BatchProcessingError("Empty response received")
+            
+            # Process results with validation
+            processed_results = []
+            for line_number, line in enumerate(output_file.splitlines(), 1):
+                try:
+                    result = json.loads(line)
+                    if not all(k in result for k in ['custom_id', 'response']):
+                        logger.warning(f"Skipping invalid result at line {line_number}")
+                        continue
+                        
+                    if result.get("response", {}).get("status_code") == 200:
+                        processed_results.append({
+                            "custom_id": result["custom_id"],
+                            "evaluation": json.loads(
+                                result["response"]["body"]["choices"][0]["message"]["content"]
+                            )
+                        })
+                except json.JSONDecodeError:
+                    logger.warning(f"Skipping invalid JSON at line {line_number}")
+                    continue
+            
+            # Save processed results
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(
+                output_dir,
+                f"processed_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            
+            with open(output_path, 'w') as f:
+                json.dump(processed_results, f, indent=2)
+            
+            logger.info(f"Successfully processed {len(processed_results)} results")
+            logger.info(f"Saved results to {output_path}")
+            
+            return processed_results
+            
+        except Exception as e:
+            logger.error(f"Error processing batch results: {str(e)}")
+            if hasattr(batch_info, 'error_file_id') and batch_info.error_file_id:
+                try:
+                    error_content = self.client.files.content(
+                        batch_info.error_file_id,
+                        timeout=self.config.request_timeout
+                    ).text
+                    logger.error(f"Batch errors: {error_content}")
+                except Exception as err:
+                    logger.error(f"Failed to retrieve error file: {err}")
+            raise BatchProcessingError(f"Failed to process batch results: {str(e)}")
+
+    def _create_evaluation_prompt(
+        self,
+        original_post: str,
+        generated_post: str,
+        persona: Dict[str, str],
+        stimulus: str
+    ) -> str:
+        """
+        Create the evaluation prompt for the LLM with input validation.
+        
+        Args:
+            original_post: The original social media post
+            generated_post: The generated post to evaluate
+            persona: Dictionary containing persona attributes
+            stimulus: Optional stimulus that guided generation
+            
+        Returns:
+            Formatted prompt string
+            
+        Raises:
+            ValueError: If required inputs are missing or invalid
+        """
+        # Input validation
+        if not original_post or not isinstance(original_post, str):
+            raise ValueError("original_post must be a non-empty string")
+        if not generated_post or not isinstance(generated_post, str):
+            raise ValueError("generated_post must be a non-empty string")
+        if not persona or not isinstance(persona, dict):
+            raise ValueError("persona must be a non-empty dictionary")
+            
+        return f"""Evaluate the generated social media post by comparing it to the original post based on the following criteria:
+
+1. **Authenticity (1-10)**: How well does the generated post match the user's persona?
+2. **Style Consistency (1-10)**: How closely does the generated post maintain the style and structure of the original post?
+3. **Matching Intent (Yes/No)**: Does the generated post align with the intent and message of the original post?
+
+Original post: {original_post}
+Generated post: {generated_post}
+Persona: {json.dumps(persona)}
+Stimulus: {stimulus}
+
+Provide the evaluation in the following JSON format:
+{{
+    "authenticity": {{"score": 1-10, "explanation": "brief explanation"}},
+    "style_consistency": {{"score": 1-10, "explanation": "brief explanation"}},
+    "matching_intent": true/false,
+    "overall_feedback": "brief overall assessment"
+}}"""
+
+def setup_args() -> argparse.Namespace:
+    """Set up command line arguments with checkpoint options."""
+    parser = argparse.ArgumentParser(description='Run batch evaluations of generated posts')
+    
+    # Existing arguments
+    parser.add_argument('--input', type=str, required=True,
+                      help='Path to input JSON file with posts to evaluate')
+    parser.add_argument('--output-dir', type=str, required=True,
+                      help='Directory for output files')
+    parser.add_argument('--check-interval', type=int, default=60,
+                      help='Interval (in seconds) to check batch status')
+    parser.add_argument('--timeout', type=int, default=86400,
+                      help='Maximum time to wait for batch completion in seconds (default 24h)')
+    parser.add_argument('--max-retries', type=int, default=3,
+                      help='Maximum number of retry attempts')
+    parser.add_argument('--retry-delay', type=int, default=60,
+                      help='Delay between retries in seconds')
+    parser.add_argument('--max-file-size', type=int, default=100*1024*1024,
+                      help='Maximum file size in bytes (default 100MB)')
+    
+    # New checkpoint arguments
+    parser.add_argument('--checkpoint-dir', type=str,
+                      help='Directory for checkpoint files (default: output_dir/checkpoints)')
+    parser.add_argument('--checkpoint-interval', type=int, default=300,
+                      help='Interval between saving checkpoints in seconds (default 300s)')
+    parser.add_argument('--checkpoint-max-kept', type=int, default=5,
+                      help='Maximum number of checkpoints to keep per batch (default 5)')
+    parser.add_argument('--resume-batch', type=str,
+                      help='Resume from a specific batch ID')
+    
+    parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                      default='INFO', help='Set logging level')
+    
+    args = parser.parse_args()
+    
+    # Validate arguments
+    if args.check_interval <= 0:
+        parser.error("check-interval must be positive")
+    if args.timeout <= 0:
+        parser.error("timeout must be positive")
+    if args.max_retries < 0:
+        parser.error("max-retries cannot be negative")
+    if args.retry_delay <= 0:
+        parser.error("retry-delay must be positive")
+    if args.max_file_size <= 0:
+        parser.error("max-file-size must be positive")
+    if args.checkpoint_interval <= 0:
+        parser.error("checkpoint-interval must be positive")
+    if args.checkpoint_max_kept <= 0:
+        parser.error("checkpoint-max-kept must be positive")
+        
+    return args
+
+def validate_evaluation_data(data: Dict) -> None:
+    """
+    Validate the structure and content of evaluation data.
+    
+    Args:
+        data: Dictionary containing evaluation data
+        
+    Raises:
+        ValueError: If data is invalid
+    """
+    if not isinstance(data, dict):
+        raise ValueError("Input data must be a dictionary")
+        
+    if 'generated_posts' not in data:
+        raise ValueError("Input data must contain 'generated_posts' key")
+        
+    if not isinstance(data['generated_posts'], list):
+        raise ValueError("'generated_posts' must be a list")
+        
+    required_fields = {'original_text', 'generated_text'}
+    for idx, post in enumerate(data['generated_posts']):
+        if not isinstance(post, dict):
+            raise ValueError(f"Post at index {idx} must be a dictionary")
+            
+        missing_fields = required_fields - set(post.keys())
+        if missing_fields:
+            raise ValueError(
+                f"Post at index {idx} missing required fields: {missing_fields}"
+            )
+            
+        persona_fields = {k for k in post.keys() if k.startswith('persona_')}
+        if not persona_fields:
+            raise ValueError(f"Post at index {idx} has no persona fields")
+
+def load_evaluations(input_path: str) -> List[Dict]:
+    """
+    Load and validate evaluation data from input file.
+    
+    Args:
+        input_path: Path to input JSON file
+        
+    Returns:
+        List of validated evaluation data
+        
+    Raises:
+        ValueError: If input file is invalid
+        IOError: If file cannot be read
+    """
+    try:
+        with open(input_path, 'r') as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in input file: {str(e)}")
+    except IOError as e:
+        raise IOError(f"Failed to read input file: {str(e)}")
+        
+    # Validate input data
+    validate_evaluation_data(data)
+    
+    evaluations = []
+    for post in data['generated_posts']:
+        persona = {k.replace('persona_', ''): v 
+                  for k, v in post.items() 
+                  if k.startswith('persona_')}
+        
+        evaluations.append({
+            'original_post': post['original_text'],
+            'generated_post': post['generated_text'],
+            'persona': persona,
+            'stimulus': post.get('stimulus', '')
+        })
+    
+    return evaluations
+
+def main():
+    """Main execution function with checkpoint support."""
+    args = setup_args()
+    
+    # Setup logging
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Create output directory
+        os.makedirs(args.output_dir, exist_ok=True)
+        
+        # Setup checkpoint directory
+        checkpoint_dir = args.checkpoint_dir or os.path.join(args.output_dir, 'checkpoints')
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        
+        # Initialize batch processor with configuration
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable not set")
+            
+        config = BatchConfig(
+            max_retries=args.max_retries,
+            retry_delay=args.retry_delay,
+            check_interval=args.check_interval,
+            timeout=args.timeout,
+            max_file_size=args.max_file_size,
+            checkpoint_interval=args.checkpoint_interval,
+            checkpoint_max_kept=args.checkpoint_max_kept
+        )
+        
+        processor = BatchProcessor(api_key, config, checkpoint_dir)
+        
+        # Check for resume
+        if args.resume_batch:
+            checkpoint = processor.checkpoint.load_latest_checkpoint(args.resume_batch)
+            if checkpoint:
+                logger.info(f"Resuming batch {args.resume_batch} from checkpoint")
+                batch_id = checkpoint['batch_id']
+                if checkpoint.get('processed_results'):
+                    logger.info(
+                        f"Found {len(checkpoint['processed_results'])} "
+                        "previously processed results"
+                    )
+            else:
+                logger.warning(f"No checkpoint found for batch {args.resume_batch}")
+                batch_id = args.resume_batch
+        else:
+            # Load evaluations and start new batch
+            evaluations = load_evaluations(args.input)
+            logger.info(f"Loaded {len(evaluations)} evaluations from {args.input}")
+            
+            batch_file = processor.prepare_batch_file(evaluations, args.output_dir)
+            logger.info(f"Created batch file: {batch_file}")
+            
+            batch_id = processor.submit_batch(batch_file)
+            logger.info(f"Submitted batch job: {batch_id}")
+        
+        # Wait for batch completion with checkpointing
+        logger.info(
+            f"Waiting for batch completion (timeout: {args.timeout}s, "
+            f"check interval: {args.check_interval}s, "
+            f"checkpoint interval: {args.checkpoint_interval}s)..."
+        )
+        
+        batch_info = processor.wait_for_batch_completion(
+            batch_id,
+            check_interval=args.check_interval,
+            timeout=args.timeout,
+            checkpoint_interval=args.checkpoint_interval
+        )
+        
+        # Process results if batch completed successfully
+        if batch_info.status == "completed" and batch_info.output_file_id:
+            results = processor.process_batch_results(
+                batch_id,
+                args.output_dir,
+                max_file_size=args.max_file_size
+            )
+            logger.info(f"Successfully processed {len(results)} results")
+            
+            # Save final checkpoint
+            if processor.checkpoint:
+                checkpoint_path = processor.checkpoint.save_state(
+                    batch_id,
+                    batch_info,
+                    results
+                )
+                logger.info(f"Saved final checkpoint to {checkpoint_path}")
+        
+    except Exception as e:
+        logger.error(f"Error in batch processing: {e}", exc_info=True)
+        raise
+
+if __name__ == "__main__":
+    main()
