@@ -55,6 +55,42 @@ class PersonaAnalyzer:
             f"Retry attempt {retry_state.attempt_number} after error, waiting {retry_state.idle_for:.1f}s..."
         )
     )
+
+    def load_and_sample_users(input_path: str, max_personas: int, min_posts_per_user: int) -> dict:
+        """
+        Load user data from JSON and sample up to max_personas users, filtering those with minimum required posts.
+        
+        Args:
+            input_path: Path to input JSON file
+            max_personas: Maximum number of personas to create
+            min_posts_per_user: Minimum number of posts required per user (default: 0)
+            
+        Returns:
+            Dict containing sampled user data
+        """
+        try:
+            with open(input_path, 'r') as f:
+                all_users = json.load(f)
+                
+            # Filter users with minimum required posts
+            if min_posts_per_user > 0:
+                filtered_users = {uid: posts for uid, posts in all_users.items() if len(posts) >= min_posts_per_user}
+                logger.info(f"Filtered from {len(all_users)} to {len(filtered_users)} users with at least {min_posts_per_user} posts")
+                all_users = filtered_users
+                
+            # If max_personas is specified and less than total users, sample randomly
+            if max_personas and len(all_users) > max_personas:
+                import random
+                sampled_user_ids = random.sample(list(all_users.keys()), max_personas)
+                sampled_users = {uid: all_users[uid] for uid in sampled_user_ids}
+                logger.info(f"Sampled {max_personas} users from total {len(all_users)} users")
+                return sampled_users
+                
+            return all_users
+        except Exception as e:
+            logger.error(f"Error loading user data: {e}")
+            raise
+
     def _get_persona_with_retry(self, prompt: str) -> Dict:
         """Make LLM API call and parse response with unified retry logic"""
         try:

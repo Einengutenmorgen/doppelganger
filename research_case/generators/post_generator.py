@@ -28,15 +28,20 @@ class PostGenerator:
         self.llm_client = llm_client
     
     def _format_persona_section(self, persona: Dict[str, str]) -> str:
-        """Format persona characteristics based on PERSONA_FIELDS."""
+        """
+        Format persona characteristics from the provided persona dictionary.
+        Only formats fields that are present in the persona dictionary.
+        """
         sections = []
-        for field in PERSONA_FIELDS:
-            if field in persona:  # Only include fields that are present
+        
+        # Process each field in the provided persona
+        for field, value in persona.items():
+            if value != "N/A":  # Additional safety check to exclude N/A values
                 formatted_field = field.replace('_', ' ').title()
-                sections.append(f"{formatted_field}: {persona[field]}")
+                sections.append(f"{formatted_field}: {value}")
         
         if not sections:  # Ensure we have at least some persona data
-            raise ValueError("Persona must contain at least one valid field")
+            raise ValueError("Persona must contain at least one valid field (not N/A)")
             
         return "\n".join(sections)
     
@@ -52,7 +57,6 @@ class PostGenerator:
         """
         if not prompt.persona:
             raise ValueError("Persona dictionary cannot be empty")
-
 
         template = """You are a social media user with the following characteristics:
 
@@ -84,7 +88,7 @@ JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤
         try:
             response = self.llm_client.call(
                 prompt_text,
-                temperature=0.7,  # Use moderate temperature for creativity
+                temperature=0.3,  # Use moderate temperature for creativity
                 max_tokens=100
             )
             
@@ -96,8 +100,6 @@ JSON Response: {{"post_text": "Can't believe my morning coffee costs $7 now 😤
         except Exception as e:
             logger.error(f"Error generating post: {e}")
             raise
-    
-    
 
 class StimulusGenerator:
     """Generates generic stimuli from original posts for testing generation"""

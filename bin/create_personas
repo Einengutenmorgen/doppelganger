@@ -20,34 +20,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def load_and_sample_users(input_path: str, max_personas: int) -> dict:
-    """
-    Load user data from JSON and sample up to max_personas users.
-    
-    Args:
-        input_path: Path to input JSON file
-        max_personas: Maximum number of personas to create
-        
-    Returns:
-        Dict containing sampled user data
-    """
-    try:
-        with open(input_path, 'r') as f:
-            all_users = json.load(f)
-            
-        # If max_personas is specified and less than total users, sample randomly
-        if max_personas and len(all_users) > max_personas:
-            import random
-            sampled_user_ids = random.sample(list(all_users.keys()), max_personas)
-            sampled_users = {uid: all_users[uid] for uid in sampled_user_ids}
-            logger.info(f"Sampled {max_personas} users from total {len(all_users)} users")
-            return sampled_users
-        
-        return all_users
-        
-    except Exception as e:
-        logger.error(f"Error loading user data: {e}")
-        raise
+
+
 
 def main():
     # Step 1: Parse command-line arguments
@@ -77,6 +51,13 @@ def main():
         "--n-posts",
         type=int,
         default=5,
+        help="Number of posts per user to include in the analysis (default: 5)."
+    )
+    parser.add_argument(
+        "--min-posts-per-users",
+        type=int,
+        default=100,
+        required=False,
         help="Number of posts per user to include in the analysis (default: 5)."
     )
     parser.add_argument(
@@ -135,7 +116,7 @@ def main():
         logger.info("Starting persona analysis...")
         
         # Load and sample users if max_personas is specified
-        sampled_users = load_and_sample_users(input_path, args.max_personas)
+        sampled_users = PersonaAnalyzer.load_and_sample_users(input_path, args.max_personas, args.min_posts_per_user)
         
         # Save sampled users to a temporary file
         temp_input = os.path.join(os.path.dirname(input_path), "temp_sampled_users.json")

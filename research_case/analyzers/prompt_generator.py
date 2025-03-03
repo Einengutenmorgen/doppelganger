@@ -59,8 +59,11 @@ class PersonaPromptGenerator:
         try:
             if num_categories <= 0 or num_categories > len(self.all_fields):
                 raise ValueError(f"num_categories must be between 1 and {len(self.all_fields)}")
+            
+            #sample up to n fields based on parameter num_categories (args.num_fields)
+            actual_number_of_num_categories = random.randint(1, num_categories)
                 
-            selected_fields = random.sample(self.all_fields, num_categories)
+            selected_fields = random.sample(self.all_fields, actual_number_of_num_categories)
             logger.debug(f"Selected fields: {selected_fields}")
             
             pruned_example = {
