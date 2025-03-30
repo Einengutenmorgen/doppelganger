@@ -1,6 +1,8 @@
 # Digital Doppelgangers
 ### Synthetic Social Media Post Generation of real Users
 
+![alt text]([http://url/to/img.png](https://github.com/Einengutenmorgen/doppelganger/blob/main/title_image.png))
+
 ## Overview
 
 This project explores the generation of synthetic social media posts using language models, focusing on persona-based content creation, evaluation, and fine-tuning. The primary goal is to create realistic and representative social media content for research purposes. Experiments were conducted using both closed-source (GPT-4o) and open-source (Llama 3.1 70B) language models.
