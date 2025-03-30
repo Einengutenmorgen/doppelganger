@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 venv
 .env
 *__pycache__*
@@ -20,3 +21,26 @@ fine_tune
 ./*.png
 .DS_Store
 for_later
+=======
+venv2
+.env
+matched_data.csv
+projectname
+data/
+notebooks/llm_comparison_plot.png
+/results/03_open_description/
+/results/Final_finetune/
+/results/fine_tune/
+/results/fine_tune02/
+results/fine_tune04/
+results/ollama/
+results/processed_data*
+results/Run_o3_categories
+results/persona_variations.jsonl
+research_case/.DS_Store
+results/.DS_Store
+results/03_open_description/generated_conversations.json
+*.cpython*
+*batch_input_*
+.DS_Store
+>>>>>>> a865aeb (final bug fixes and results analysis)

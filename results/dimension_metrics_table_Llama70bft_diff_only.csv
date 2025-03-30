@@ -1,0 +1,23 @@
+Dimension,Rouge1 (Diff),Rouge2 (Diff),Rougel (Diff),Similarity Scores (Diff),Authenticity (Diff),Style Consistency (Diff),Matching Intent (Diff)
+stress_indicators,0.001,-0.002,0.001,0.002,-0.15,-0.05,-0.9%
+conflict_approach,-0.021,-0.014,-0.016,-0.003,0.02,0.08,-0.4%
+brevity_style,0.002,-0.012,-0.006,0.005,0.23,0.26,5.7%
+language_formality,0.001,-0.001,0.002,-0.002,-0.15,-0.13,-3.2%
+vocabulary_range,0.038,0.033,0.029,0.002,0.07,0.13,0.5%
+identity_projection,-0.007,-0.014,-0.008,-0.004,0.18,0.02,0.0%
+content_triggers,0.013,0.015,0.011,-0.002,-0.23,-0.24,-4.6%
+value_signals,-0.017,-0.002,-0.005,-0.012,-0.41,-0.30,-1.4%
+cognitive_patterns,-0.004,-0.002,-0.007,-0.008,-0.22,-0.14,-3.5%
+emotional_expression,-0.010,-0.005,-0.013,-0.003,0.03,0.06,-1.2%
+controversy_handling,-0.014,-0.007,-0.012,-0.006,-0.01,-0.10,-0.6%
+adaptability_signs,-0.003,-0.007,-0.002,-0.006,-0.18,-0.14,-3.2%
+authenticity_markers,-0.003,-0.003,-0.003,0.002,0.26,0.09,0.6%
+message_effectiveness,-0.001,-0.002,0.002,0.005,-0.28,-0.24,-4.0%
+punctuation_style,0.010,0.018,0.014,0.009,0.06,-0.01,2.6%
+belief_expression,0.009,0.004,0.012,0.012,0.39,0.17,8.9%
+reaction_patterns,0.006,-0.000,0.009,0.004,0.22,0.17,4.8%
+narrative_voice,0.016,0.016,0.009,0.002,0.20,0.13,3.6%
+social_orientation,0.020,0.015,0.021,0.007,-0.00,0.07,-1.2%
+general_decription,-0.004,0.000,-0.010,-0.001,-0.01,0.07,-0.2%
+community_role,-0.016,-0.017,-0.013,-0.000,0.02,0.10,2.0%
+opinion_expression,-0.008,-0.007,-0.009,0.000,0.05,0.04,-3.6%
