@@ -1,7 +1,7 @@
 # Digital Doppelgangers
 ### Synthetic Social Media Post Generation of real Users
 
-![titleImage]([https://github.com/Einengutenmorgen/doppelganger/blob/main/title_image.png])
+![titleImage](https://github.com/Einengutenmorgen/doppelganger/blob/main/title_image.png)
 
 ## Overview
 
