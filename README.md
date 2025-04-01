@@ -70,3 +70,6 @@ The initial iteration using GPT-4o cost EUR 66.96 for 28,000 API requests. This 
 *   The project aims to generate synthetic social media posts that resemble real-world content.
 *   Fine-tuning is performed to address divergences observed in the initial GPT-4o generated posts, such as orthography, punctuation, content offensiveness, hashtag usage and post length.
 *   The dataset is partitioned into training and evaluation sets to mitigate overfitting during fine-tuning.
+
+--- automaticaly generated read.me ---
+
